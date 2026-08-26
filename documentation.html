@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Documentation — AskStein</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="field" aria-hidden="true"></canvas>
+<div id="ground" aria-hidden="true"></div>
+<div id="atmos" aria-hidden="true"></div>
+
+<header>
+  <div class="brand">
+    <a class="wordmark" href="index.html">AskStein</a>
+    <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" onclick="toggleSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+<aside id="sidebar" aria-hidden="true">
+  <button class="sidebar-close" aria-label="Close menu" onclick="closeSidebar()">✕</button>
+  <nav class="sidebar-nav">
+    <a href="index.html">Home</a>
+    <a href="about.html">About</a>
+    <a href="corpus.html">Corpus</a>
+    <a href="documentation.html" class="current">Documentation</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
+
+<div class="page page-shift">
+  <p class="eyebrow" data-reveal>Documentation</p>
+  <h1 class="qhead" data-reveal>How a question becomes an answer.</h1>
+  <p class="direct" data-reveal>The language model's job is deliberately narrow: read the retrieved evidence and
+  write an answer grounded in it. It is not permitted to invent citations, and when retrieval doesn't
+  surface adequate evidence, the system abstains.</p>
+
+  <div class="label" data-reveal>The pipeline</div>
+  <div class="timeline">
+    <div class="stepline" data-reveal><span class="n">01</span><div><div class="h">Ingestion &amp; curation</div>
+      <div class="d">Papers are pulled from legitimate open-access channels, deduplicated, and split into
+      passages.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">02</span><div><div class="h">Embedding</div>
+      <div class="d">Each passage is converted into a vector using OpenAI's
+      text-embedding-3-large.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">03</span><div><div class="h">Indexing</div>
+      <div class="d">Those vectors are stored in a FAISS index built for fast similarity
+      search.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">04</span><div><div class="h">Retrieval</div>
+      <div class="d">An incoming question is embedded and matched against the index to pull the most
+      relevant passages.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">05</span><div><div class="h">Generation</div>
+      <div class="d">A fine-tuned language model composes an answer using only the retrieved
+      evidence.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">06</span><div><div class="h">Citation canonicalization</div>
+      <div class="d">A deterministic post-processing step rewrites and verifies every citation, removing
+      the model's ability to fabricate or alter a reference.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">07</span><div><div class="h">Abstention</div>
+      <div class="d">If the evidence isn't strong enough, the system says so instead of manufacturing an
+      answer.</div></div></div>
+  </div>
+
+  <div class="bdrule" data-reveal>The system today</div>
+  <dl class="brow" data-reveal><dt>Model</dt><dd>Qwen2.5-32B-Instruct with a fine-tuned LoRA adapter</dd></dl>
+  <dl class="brow" data-reveal><dt>Embeddings</dt><dd>OpenAI text-embedding-3-large</dd></dl>
+  <dl class="brow" data-reveal><dt>Retrieval</dt><dd>FAISS over 338,701 deduplicated passages drawn from roughly
+  13,387 papers — see the <a href="corpus.html">corpus →</a></dd></dl>
+  <dl class="brow" data-reveal><dt>Citations</dt><dd>Deterministic canonicalization — the model cannot invent or
+  modify a reference</dd></dl>
+  <dl class="brow" data-reveal><dt>Interface</dt><dd>A hosted web frontend</dd></dl>
+
+  <p class="body" data-reveal>This is the current proof-of-concept build. The corpus is deliberately frozen during
+  validation and is designed to scale substantially once that window closes.</p>
+
+  <div class="bdrule" data-reveal>Where it's headed</div>
+  <div class="timeline">
+    <div class="stepline" data-reveal><span class="n">01</span><div><div class="h">Secure the foundation</div>
+      <div class="d">Lock down the assets and tighten the corporate structure.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">02</span><div><div class="h">Build the evaluation harness</div>
+      <div class="d">The foundation for external validation and a corpus-coverage
+      diagnostic.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">03</span><div><div class="h">Validate the beachhead</div>
+      <div class="d">External, expert validation of the orthopedic use case with clinical
+      collaborators.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">04</span><div><div class="h">Scale the corpus</div>
+      <div class="d">Expand the evidence base, guided by what the eval harness reveals.</div></div></div>
+    <div class="stepline" data-reveal><span class="n">05</span><div><div class="h">Pilot &amp; fund</div>
+      <div class="d">A clinical pilot at BIDMC, backed by non-dilutive research grants.</div></div></div>
+  </div>
+
+  <p class="philosophy" data-reveal>Abstention is not an error — it's a feature. When AskStein says it doesn't
+  know, it's reporting the honest boundary of what its corpus contains, not failing to answer.</p>
+</div>
+
+<script src="field.js"></script>
+<script src="nav.js"></script>
+</body>
+</html>

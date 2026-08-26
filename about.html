@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>About — AskStein</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="field" aria-hidden="true"></canvas>
+<div id="ground" aria-hidden="true"></div>
+<div id="atmos" aria-hidden="true"></div>
+
+<header>
+  <div class="brand">
+    <a class="wordmark" href="index.html">AskStein</a>
+    <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" onclick="toggleSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+<aside id="sidebar" aria-hidden="true">
+  <button class="sidebar-close" aria-label="Close menu" onclick="closeSidebar()">✕</button>
+  <nav class="sidebar-nav">
+    <a href="index.html">Home</a>
+    <a href="about.html" class="current">About</a>
+    <a href="corpus.html">Corpus</a>
+    <a href="documentation.html">Documentation</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
+
+<div class="page page-shift">
+  <p class="eyebrow" data-reveal>About</p>
+  <h1 class="qhead" data-reveal>AskStein is a citation-locked biomedical retrieval system.</h1>
+  <p class="direct" data-reveal>It answers clinical and research questions by pulling passages from a curated
+  corpus of peer-reviewed literature and composing a response in which every claim traces back to a
+  verifiable source — and when the evidence isn't there, it declines to answer rather than guessing.</p>
+
+  <div class="label" data-reveal>The problem it solves</div>
+  <p class="body" data-reveal>Medical knowledge is enormous, fragmented, and moving faster than any clinician can
+  keep up with. General-purpose language models can summarize it fluently, but they hallucinate —
+  including inventing citations that look real and aren't. In medicine, a confident but ungrounded
+  answer is worse than no answer at all. Clinicians and researchers need answers they can trace back to
+  primary literature, and they need the system to admit when it doesn't know. That combination —
+  grounded, auditable, and honest about its limits — is what almost no general tool actually
+  delivers.</p>
+
+  <div class="label" data-reveal>What AskStein actually is</div>
+  <p class="body" data-reveal>At its core, AskStein is <em>not a model</em> — it's a retrieval system wrapped around
+  one. That distinction is the whole point. The trustworthiness lives in three places:</p>
+  <div class="trio">
+    <div class="trio-item" data-reveal><span class="trio-n">01</span>
+      <span class="trio-icon"><svg viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg></span>
+      <h3 class="trio-h">Corpus</h3>
+      <p class="trio-d">A curated, de-duplicated body of biomedical literature drawn from legitimate
+      open-access sources.</p></div>
+    <div class="trio-item" data-reveal><span class="trio-n">02</span>
+      <span class="trio-icon"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+      <h3 class="trio-h">Retrieval</h3>
+      <p class="trio-d">The machinery that finds the most relevant passages for a given question.</p></div>
+    <div class="trio-item" data-reveal><span class="trio-n">03</span>
+      <span class="trio-icon"><svg viewBox="0 0 24 24"><path d="M9 12h6"/><path d="M8 8H6a4 4 0 0 0 0 8h2"/><path d="M16 8h2a4 4 0 0 1 0 8h-2"/></svg></span>
+      <h3 class="trio-h">Citations</h3>
+      <p class="trio-d">A deterministic layer that guarantees every reference in an answer is real and
+      correctly attributed.</p></div>
+  </div>
+  <p class="body" data-reveal>The language model's job is deliberately narrow: read the retrieved evidence and
+  write an answer grounded in it. It is explicitly not permitted to invent citations, and when
+  retrieval doesn't surface adequate evidence, the system abstains. The intelligence people trust isn't
+  the model's fluency — it's the curation and the discipline around it.</p>
+
+  <div class="bdrule" data-reveal>The core thesis: the corpus is the moat</div>
+  <p class="body" data-reveal>AskStein's central bet — confirmed empirically in its own testing — is that retrieval
+  quality, not model size or fine-tuning, is the dominant driver of answer accuracy. Improving the
+  corpus and the retrieval pipeline moves the needle more than swapping in a bigger model. That's why
+  the curated, citation-grade corpus is the competitive advantage, not the model. Anyone can call an
+  LLM; the defensible asset is the curated body of evidence and the standards that keep it clean.</p>
+
+  <div class="bdrule" data-reveal>What makes it different</div>
+  <p class="body" data-reveal>The real competition isn't a general-purpose chatbot — it's the well-capitalized
+  incumbent in this space, OpenEvidence. AskStein's wedges are four:</p>
+  <div class="wedges">
+    <div class="wedge-item" data-reveal><span class="trio-n">01</span>
+      <span class="trio-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16l-6 8v6l-4 2v-8L4 4Z"/></svg></span>
+      <h3 class="trio-h">Curation</h3>
+      <p class="trio-d">The corpus is deliberately assembled and auditable, not an opaque black box.</p></div>
+    <div class="wedge-item" data-reveal><span class="trio-n">02</span>
+      <span class="trio-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/></svg></span>
+      <h3 class="trio-h">Depth</h3>
+      <p class="trio-d">Rather than covering all of medicine shallowly, AskStein goes deep in one specialty
+      first.</p></div>
+    <div class="wedge-item" data-reveal><span class="trio-n">03</span>
+      <span class="trio-icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg></span>
+      <h3 class="trio-h">Integrity</h3>
+      <p class="trio-d">Citations are guaranteed by architecture, not coaxed out of a prompt.</p></div>
+    <div class="wedge-item" data-reveal><span class="trio-n">04</span>
+      <span class="trio-icon"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <h3 class="trio-h">Honesty</h3>
+      <p class="trio-d">The system is built to say "I don't know" rather than to always produce an
+      answer.</p></div>
+  </div>
+
+  <div class="bdrule" data-reveal>The beachhead</div>
+  <p class="body" data-reveal>AskStein starts narrow, in orthopedic clinical decision support. A focused specialty
+  lets the team build genuine depth, validate the system with real clinical experts, and earn
+  credibility before expanding. The beachhead is anchored by a clinical co-founder with deep
+  institutional standing, which unlocks research infrastructure, clinical validation, and eventual
+  pilot access that a generic tool simply can't reach. Depth first, breadth later. <a href="contact.html">See the team →</a></p>
+
+  <p class="philosophy" data-reveal>AskStein isn't trying to be a smarter chatbot. It's building what medicine
+  actually needs: a trustworthy, auditable memory layer where every answer traces back to real evidence
+  — or the system honestly says it doesn't know. The model is a commodity. The curated corpus, the
+  citation discipline, and the clinical validation are the moat.</p>
+</div>
+
+<script src="field.js"></script>
+<script src="nav.js"></script>
+</body>
+</html>

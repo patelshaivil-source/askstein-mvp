@@ -1636,21 +1636,40 @@ function setTheme(m){
 /* wire the field into the existing screen transitions */
 (function(){
   const _go=window.go, _ask=window.ask;
+
+  /* ── ambient self-pulse ──────────────────────────────────
+     On the landing page only: the reconstruction periodically
+     "ignites" on its own — the same expand/highlight the joint
+     does on retrieval — then relaxes back, on a loop, while the
+     slow constant rotation keeps going underneath it. */
+  let autoPulseTimer=null;
+  function autoPulseTick(){
+    if(!window.FIELD) return;
+    FIELD.retrieve(14+Math.floor(Math.random()*10));
+    autoPulseTimer=setTimeout(()=>{
+      FIELD.cool();
+      autoPulseTimer=setTimeout(autoPulseTick, 2200+Math.random()*1600);
+    }, 1500);
+  }
+  function startAutoPulse(){ if(autoPulseTimer) return; autoPulseTimer=setTimeout(autoPulseTick, 900); }
+  function stopAutoPulse(){ clearTimeout(autoPulseTimer); autoPulseTimer=null; }
+
   window.go=function(s){
     _go(s);
     if(!window.FIELD)return;
-    if(s==='entry'){ FIELD.depth(1); FIELD.cool(); FIELD.quiet(false); FIELD.glow('on'); }
-    else if(s==='load'){ FIELD.depth(.85); FIELD.quiet(false); FIELD.glow('dim'); }
-    else if(s==='abstain'){ FIELD.depth(.20); FIELD.cool(); FIELD.quiet(true); FIELD.glow('off'); }
-    else { FIELD.depth(.34); FIELD.cool(); FIELD.quiet(false); FIELD.glow('dim'); }
+    if(s==='entry'){ FIELD.depth(1); FIELD.cool(); FIELD.quiet(false); FIELD.glow('on'); startAutoPulse(); }
+    else if(s==='load'){ stopAutoPulse(); FIELD.depth(.85); FIELD.quiet(false); FIELD.glow('dim'); }
+    else if(s==='abstain'){ stopAutoPulse(); FIELD.depth(.20); FIELD.cool(); FIELD.quiet(true); FIELD.glow('off'); }
+    else { stopAutoPulse(); FIELD.depth(.34); FIELD.cool(); FIELD.quiet(false); FIELD.glow('dim'); }
   };
   window.ask=function(kind){
+    stopAutoPulse();
     _ask(kind);
     if(!window.FIELD)return;
     FIELD.depth(.85); FIELD.quiet(false);
     setTimeout(()=>FIELD.retrieve(17),1350);   // fires with "Retrieved 17 passages"
   };
-  if(window.FIELD) FIELD.glow('on');   // entry starts expressive
+  if(window.FIELD){ FIELD.glow('on'); startAutoPulse(); }   // entry starts expressive, pulsing
 })();
 </script>
 </body>

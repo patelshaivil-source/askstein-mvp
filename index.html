@@ -1,0 +1,1952 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>AskStein — UX Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F1E7; --paper-sunk:#EFE8D9; --paper-raise:#FDFBF6;
+  --ink:#16181A; --ink-2:#4A4E52; --ink-3:#696E72; --rule:#E2DFD9;
+  --accent:#1B4D3E; --accent-soft:#E8EFEB;
+  --evidence:#80591C; --evidence-tint:#F7EFDD;
+  --boundary:#9A5B3F; --boundary-tint:#F6EDE7;
+  --serif:"Source Serif 4",Georgia,serif;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --shadow:0 1px 3px rgba(22,24,26,.06),0 8px 24px rgba(22,24,26,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;border:0}
+
+/* ── dev toolbar ─────────────────────────────── */
+#devbar{position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--ink);color:#F2F0EC;
+  display:flex;gap:4px;align-items:center;padding:7px 14px;font-size:11.5px;letter-spacing:.04em;flex-wrap:wrap;
+  transform:translateY(100%);transition:transform .2s cubic-bezier(.2,0,0,1);pointer-events:none;
+  visibility:hidden}
+body.dev-on #devbar{transform:translateY(0);pointer-events:auto;visibility:visible}
+/* Dev toolbar entry point is intentionally not a visible affordance in
+   production — it's reached only via the backtick (`) keyboard shortcut,
+   not a discoverable on-screen control. */
+#devdot{display:none}
+body.dev-on #devdot{background:#5FD1C0}
+#devbar b{font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#83888D;margin-right:6px;font-size:10px}
+#devbar button{background:transparent;border:1px solid #35393C;color:#C9CCCE;padding:4px 10px;border-radius:2px;font-size:11.5px}
+#devbar button:hover{border-color:#6C7174;color:#fff}
+#devbar button[aria-pressed=true]{background:#F2F0EC;color:var(--ink);border-color:#F2F0EC;font-weight:600}
+#devbar .sep{width:1px;height:18px;background:#35393C;margin:0 8px}
+
+/* ── frame ───────────────────────────────────── */
+#frame{margin:0 auto 52px;transition:max-width .25s ease,margin-left .2s cubic-bezier(.4,0,.2,1)}
+#frame.mobile{max-width:400px;border-left:1px solid var(--rule);border-right:1px solid var(--rule);min-height:100vh}
+
+/* ── header ──────────────────────────────────── */
+header{display:flex;align-items:center;gap:20px;padding:20px 36px;border-bottom:1px solid var(--rule);
+  position:sticky;top:0;background:var(--paper);z-index:20}
+.wordmark{font-family:var(--sans);font-weight:600;letter-spacing:.14em;font-size:18px;text-transform:uppercase}
+header .brand{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+header nav{margin-left:auto;display:flex;gap:22px;font-size:13px;color:var(--ink-2)}
+header nav button{background:none;border:0;padding:0;color:inherit}
+header nav button:hover{color:var(--ink)}
+.mobile header{padding:14px 18px;gap:12px}
+.mobile header nav{gap:14px;font-size:12px}
+
+/* ── hamburger + sidebar ─────────────────────── */
+/* Claude-style panel: a solid, opaque rail that pushes the page
+   content aside as it slides in — no dimming scrim, no glass, no
+   bounce. A single fast, clean ease so open and close feel like a
+   direct mechanical response rather than a staged reveal. */
+:root{ --menu-ease:cubic-bezier(.4,0,.2,1); --menu-dur:.2s; }
+
+.hamburger{background:none;border:0;padding:4px 2px;display:flex;flex-direction:column;
+  justify-content:center;gap:4px;cursor:pointer;width:22px}
+.hamburger span{display:block;height:1.5px;width:100%;background:var(--ink-2);border-radius:2px;
+  transition:background .15s}
+.hamburger:hover span{background:var(--ink)}
+
+/* click-outside-to-close catcher only — no visual dimming, since
+   the sidebar pushes content rather than sitting modally above it */
+#sidebar-overlay{position:fixed;top:0;left:270px;right:0;bottom:0;background:transparent;
+  opacity:0;pointer-events:none;z-index:200}
+#sidebar-overlay.on{opacity:1;pointer-events:auto}
+
+#sidebar{position:fixed;top:0;left:0;bottom:0;width:270px;z-index:201;
+  background:var(--paper);
+  border-right:1px solid var(--rule);
+  transform:translateX(-100%);
+  transition:transform var(--menu-dur) var(--menu-ease);
+  padding:22px 26px;display:flex;flex-direction:column;gap:24px}
+#sidebar.on{transform:translateX(0)}
+
+/* push layout: main content shifts over with the sidebar */
+body.sidebar-open{overflow-x:hidden}
+body.sidebar-open #frame{margin-left:270px}
+body.sidebar-open #devbar{left:270px;transition:left var(--menu-dur) var(--menu-ease)}
+@media (max-width:900px){
+  body.sidebar-open #frame{margin-left:0}
+  body.sidebar-open #devbar{left:0}
+  #sidebar-overlay{left:0}
+}
+.sidebar-close{align-self:flex-end;background:none;border:0;font-size:16px;line-height:1;
+  color:var(--ink-2);cursor:pointer;padding:4px}
+.sidebar-close:hover{color:var(--ink)}
+.sidebar-nav{display:flex;flex-direction:column;gap:18px;margin-top:8px}
+.sidebar-nav a{font-family:var(--sans);font-size:13.5px;letter-spacing:.02em;color:var(--ink);
+  text-decoration:none;transition:color .15s}
+.sidebar-nav a:hover{color:var(--accent)}
+.sidebar-nav a.current{color:var(--accent);font-weight:500}
+
+:root[data-theme="dark"] #sidebar{background:var(--paper);
+  border-right:1px solid var(--rule)}
+:root[data-theme="dark"] .hamburger span{background:var(--ink-2)}
+:root[data-theme="dark"] .hamburger:hover span{background:var(--ink)}
+
+/* ── entry ── an asymmetric hero: the environment occupies the
+   left field, the copy sits in a quiet zone right-of-center,
+   a second sparse network is left free to breathe on the right ── */
+.entry{max-width:1320px;margin:0 auto;padding:0 40px;min-height:calc(100vh - 73px);
+  display:grid;grid-template-columns:minmax(0,.88fr) minmax(340px,568px) minmax(0,.46fr);align-items:center}
+.mobile .entry{display:block;padding:36px 20px 40px;min-height:0}
+.hero-copy{grid-column:2;padding:64px 0}
+.mobile .hero-copy{padding:0}
+
+.eyebrow{font-family:var(--sans);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 22px;display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--ink-3)}
+
+h1.display{font-family:var(--serif);font-size:60px;line-height:.98;letter-spacing:-.02em;font-weight:400;margin:0 0 26px}
+.mobile h1.display{font-size:34px;line-height:1.04}
+.sub{font-family:var(--serif);font-size:18px;line-height:1.55;color:var(--ink-2);margin:0 0 44px;max-width:38ch}
+.mobile .sub{font-size:16px;margin-bottom:30px}
+
+.composer{position:relative;display:flex;align-items:center;gap:10px;border:1px solid var(--rule);
+  background:var(--paper-raise);border-radius:28px;padding:14px 16px 14px 20px;transition:border-color .16s,box-shadow .16s}
+.composer::before{content:"";position:absolute;left:26px;right:26px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(var(--glow-accent,27,77,62),.55),transparent);opacity:0}
+.composer:focus-within::before{opacity:1}
+.composer:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.composer textarea{flex:1;border:0;outline:0;resize:none;background:transparent;font-family:var(--sans);
+  font-size:16.5px;line-height:1.5;color:var(--ink);min-height:26px;max-height:104px;align-self:center}
+.composer textarea::placeholder{color:var(--ink-3)}
+.composer .go{border:0;background:transparent;color:var(--ink-3);padding:2px 4px;font-size:15px;line-height:1;flex:none}
+.composer .go:hover{color:var(--accent)}
+.composer .icon-btn{border:0;background:transparent;color:var(--ink-3);flex:none;width:32px;height:32px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .14s,color .14s}
+.composer .icon-btn:hover{background:var(--accent-soft);color:var(--accent)}
+.composer .icon-btn svg{width:18px;height:18px}
+.composer .icon-btn.mic.active{color:var(--accent);background:var(--accent-soft)}
+.composer .icon-btn.mic.active svg{animation:mic-pulse 1.1s ease-in-out infinite}
+@keyframes mic-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.composer-status{font-size:11.5px;color:var(--ink-3);margin-top:8px;min-height:1em}
+.composer-meta{display:flex;justify-content:space-between;margin-top:12px;font-size:11.5px;color:var(--ink-3);
+  font-family:var(--mono);letter-spacing:.01em}
+.composer-meta kbd{font-family:var(--mono);font-size:11px}
+
+.examples{margin-top:52px;display:grid;grid-template-columns:1fr 1fr;gap:2px 28px}
+.mobile .examples{margin-top:34px;grid-template-columns:1fr;gap:0}
+.ex{display:block;width:100%;text-align:left;background:none;border:0;border-radius:2px;
+  padding:15px 12px;margin:0 -12px;transition:background .16s,transform .16s cubic-bezier(.2,0,0,1)}
+.ex:nth-child(2n){margin-top:22px}
+.mobile .ex:nth-child(2n){margin-top:0}
+.ex:hover{background:rgba(127,133,139,.07);transform:translateX(2px)}
+.ex .cat{display:block;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;font-weight:500}
+.ex .q{font-family:var(--serif);font-size:15.5px;line-height:1.42;color:var(--ink)}
+.ex:hover .q{color:var(--accent)}
+.ex .arrow{float:right;color:var(--ink-3);font-size:13px;margin-left:8px}
+.ex:hover .arrow{color:var(--accent)}
+.philosophy{margin-top:48px;font-size:12.5px;color:var(--ink-3);line-height:1.65;max-width:44ch}
+
+.field-error{color:var(--boundary);font-size:12.5px;margin:10px 0 0;font-family:var(--sans)}
+textarea[aria-invalid="true"]{outline:2px solid var(--boundary);outline-offset:2px}
+.demo-note{font-size:12px;color:var(--ink-3);background:var(--evidence-tint);border-left:2px solid var(--evidence);
+  padding:9px 12px;margin:0 0 24px;max-width:62ch;line-height:1.55;font-family:var(--sans)}
+
+/* ── retrieval ───────────────────────────────── */
+.qhead{font-family:var(--serif);font-size:22px;line-height:1.35;font-weight:400;margin:0 0 22px;padding-bottom:22px;border-bottom:1px solid var(--rule)}
+.mobile .qhead{font-size:18px}
+.steps{display:grid;gap:14px;font-size:14.5px}
+.step{display:flex;gap:12px;align-items:baseline;color:var(--ink-3);transition:color .24s,opacity .24s;opacity:.45}
+.step.on{color:var(--ink);opacity:1}
+.step .mark{font-family:var(--mono);font-size:13px;width:14px;flex:none;color:var(--ink-3)}
+.step.on .mark{color:var(--accent)}
+.step .num{color:var(--ink-2)}
+
+/* ── answer layout ───────────────────────────── */
+.answerwrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:0;align-items:start}
+.mobile .answerwrap{grid-template-columns:1fr}
+.acol{padding:34px 40px 64px;min-width:0}
+.mobile .acol{padding:24px 20px 40px}
+.rail{border-left:1px solid var(--rule);background:var(--paper-sunk);padding:0;position:sticky;top:57px;
+  height:calc(100vh - 57px);overflow-y:auto}
+.mobile .rail{display:none}
+
+.direct{font-family:var(--serif);font-size:19px;line-height:1.6;margin:0 0 34px;max-width:64ch}
+.mobile .direct{font-size:17px}
+.label{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin:44px 0 20px}
+.label:first-of-type{margin-top:0}
+
+/* claims */
+.claim{position:relative;padding-left:20px;margin-bottom:26px;max-width:66ch;cursor:default}
+.claim::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:2px;background:var(--ink)}
+.claim[data-s=limited]::before{width:1px;background:var(--ink-3)}
+.claim[data-s=divided]::before{background:none;border-left:2px dashed var(--ink-2)}
+.claim[data-s=none]::before{background:none;border-left:2px solid var(--ink-3);opacity:.4}
+.claim p{font-family:var(--serif);font-size:17px;line-height:1.62;margin:0}
+.claim[data-s=none] p{color:var(--ink-2)}
+.claim.active{background:linear-gradient(90deg,rgba(232,239,235,.85),rgba(232,239,235,0));border-radius:0 2px 2px 0}
+.claim.active::before{background:var(--accent)}
+.claim[data-s=divided].active::before{background:none;border-left-color:var(--accent)}
+.claim[data-s=none].active::before{background:none;border-left-color:var(--accent)}
+.claim[data-s=limited].active::before{background:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;align-items:center}
+.chip{font-size:12px;padding:3px 9px;border:1px solid var(--rule);background:var(--paper-raise);border-radius:2px;
+  color:var(--ink-2);white-space:nowrap;transition:.12s}
+.chip:hover,.chip.lit{border-color:var(--evidence);background:var(--evidence-tint);color:var(--ink)}
+.chip.on{background:var(--evidence);border-color:var(--evidence);color:#fff}
+.divnote{margin-top:9px;font-size:12.5px;color:var(--ink-2);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.divnote button{background:none;border:0;padding:0;color:var(--accent);font-size:12.5px;font-weight:500;border-bottom:1px solid transparent}
+.divnote button:hover{border-bottom-color:var(--accent)}
+.statelabel{font-size:11px;color:var(--ink-3);letter-spacing:.03em}
+
+/* inline partial abstention */
+.gap{position:relative;padding-left:20px;margin:26px 0;max-width:66ch}
+.gap::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:2px;border-left:2px solid var(--boundary);opacity:.55}
+.gap .t{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--boundary);font-weight:600;margin-bottom:6px}
+.gap p{margin:0;font-family:var(--serif);font-size:16px;line-height:1.55;color:var(--ink-2)}
+
+/* limitations / basis / continue */
+.lims{list-style:none;padding:0;margin:0;max-width:64ch}
+.lims li{position:relative;padding-left:18px;margin-bottom:9px;font-size:14.5px;color:var(--ink-2);line-height:1.55}
+.lims li::before{content:"";position:absolute;left:2px;top:10px;width:5px;height:1px;background:var(--ink-3)}
+.basis{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:16px 0;max-width:64ch;margin-top:12px}
+.basisline{display:flex;justify-content:space-between;gap:16px;align-items:baseline;font-size:13.5px;color:var(--ink-2);flex-wrap:wrap}
+.basisline .n{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.basis button{background:none;border:0;padding:0;color:var(--accent);font-size:12.5px;font-weight:500}
+.basisdetail{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--rule)}
+.basisdetail.open{display:block}
+.brow{display:grid;grid-template-columns:110px 1fr;gap:14px;font-size:13px;margin-bottom:7px}
+.brow dt{color:var(--ink-3);font-size:11px;letter-spacing:.07em;text-transform:uppercase;padding-top:2px}
+.brow dd{margin:0;color:var(--ink-2)}
+.brow dd.bd{color:var(--boundary)}
+.follow{display:grid;gap:2px;max-width:64ch}
+.fu{text-align:left;background:none;border:0;border-top:1px solid var(--rule);padding:14px 2px;font-family:var(--serif);
+  font-size:16px;color:var(--ink);display:flex;gap:12px;transition:padding-left .14s}
+.fu:last-child{border-bottom:1px solid var(--rule)}
+.fu:hover{padding-left:8px;color:var(--accent)}
+.fu span{color:var(--ink-3);flex:none}
+.fu:hover span{color:var(--accent)}
+.fcomposer{margin-top:40px;max-width:64ch}
+
+/* ── info pages (about / corpus / docs / contact) ───────── */
+.back-link{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:0;
+  font-family:var(--sans);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:26px}
+.back-link:hover{color:var(--accent)}
+.infopage .qhead{font-size:26px}
+.infopage .direct{margin-bottom:40px}
+.infopage .label:first-of-type{margin-top:0}
+.infopage p.body{font-size:14.5px;line-height:1.7;color:var(--ink-2);max-width:64ch;margin:0 0 16px}
+.infopage .brow{margin-bottom:16px}
+.infopage .brow dt{padding-top:1px}
+.stepline{display:grid;grid-template-columns:26px 1fr;gap:14px;margin-bottom:16px;max-width:64ch}
+.stepline .n{font-family:var(--mono);font-size:11.5px;color:var(--accent);padding-top:2px}
+.stepline .h{font-size:14px;font-weight:500;color:var(--ink);margin-bottom:3px}
+.stepline .d{font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+.team-grid{display:grid;gap:22px;max-width:66ch}
+.team-card{border-top:1px solid var(--rule);padding-top:16px}
+.team-card .who{font-family:var(--serif);font-size:17px;color:var(--ink);margin-bottom:2px}
+.team-card .role{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.team-card .focus{font-size:13.5px;line-height:1.6;color:var(--ink-2);max-width:60ch}
+.contact-cta{margin-top:40px;padding-top:24px;border-top:1px solid var(--rule);max-width:64ch}
+.contact-cta a{font-family:var(--serif);font-size:17px;color:var(--accent);text-decoration:none}
+.contact-cta a:hover{text-decoration:underline}
+:root[data-theme="dark"] .stepline .n{color:var(--accent)}
+:root[data-theme="dark"] .team-card .role{color:var(--accent)}
+
+/* ── rail ────────────────────────────────────── */
+.railhead{padding:16px 20px 0;position:sticky;top:0;background:var(--paper-sunk);z-index:2}
+.railtitle{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.railcount{font-size:12.5px;color:var(--ink-2);margin-top:3px;font-family:var(--mono)}
+.tabs{display:flex;gap:18px;margin-top:14px;border-bottom:1px solid var(--rule)}
+.tab{background:none;border:0;padding:0 0 9px;font-size:12.5px;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent);font-weight:500}
+.focusbar{display:none;margin:12px 0 0;padding:10px 12px;background:var(--evidence-tint);border-left:2px solid var(--evidence);font-size:12.5px;line-height:1.45}
+.focusbar.on{display:block}
+.focusbar em{font-style:normal;font-family:var(--serif);color:var(--ink)}
+.focusbar button{background:none;border:0;padding:0;color:var(--accent);font-weight:500;font-size:12px;margin-top:6px;display:block}
+
+.srcs{padding:0 0 60px}
+.src{border-bottom:1px solid var(--rule);padding:15px 20px;transition:background .14s,opacity .14s}
+.src.lit{background:var(--evidence-tint)}
+.src.dim{opacity:.32}
+.src.uncited .name{color:var(--ink-2)}
+.srchead{display:flex;gap:10px;align-items:baseline;width:100%;background:none;border:0;padding:0;text-align:left}
+.caret{color:var(--ink-3);font-size:10px;flex:none;width:9px;transition:transform .18s}
+.src.open .caret{transform:rotate(90deg)}
+.name{font-size:14px;font-weight:500;letter-spacing:-.005em}
+.meta{font-size:12px;color:var(--ink-2);margin-top:3px;margin-left:19px}
+.meta .n{font-family:var(--mono);font-size:11.5px}
+.tag{display:inline-block;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+  border:1px solid var(--rule);padding:1px 5px;border-radius:2px;margin-left:6px;vertical-align:1px}
+.usecount{font-size:11.5px;color:var(--evidence);margin-top:4px;margin-left:19px;font-weight:500}
+.usecount.no{color:var(--ink-3);font-weight:400}
+.passage{margin:11px 0 0 19px;font-size:13.5px;line-height:1.6;color:var(--ink-2);
+  border-left:2px solid var(--rule);padding:2px 0 2px 11px}
+.passage mark{background:var(--evidence-tint);color:var(--ink);box-shadow:-2px 0 0 var(--evidence);padding:1px 0}
+.card{display:none;margin:12px 0 0 19px}
+.src.open .card{display:block}
+.cardsec{margin-bottom:13px}
+.cardsec .t{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin-bottom:5px}
+.supports{font-family:var(--serif);font-size:14px;line-height:1.5;color:var(--ink);padding-left:10px;border-left:2px solid var(--ink)}
+.doi{font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+.facets{display:grid;grid-template-columns:84px 1fr;gap:5px 12px;font-size:12.5px;margin:0}
+.facets dt{color:var(--ink-3)}
+.facets dd{margin:0;color:var(--ink-2)}
+.cardacts{display:flex;gap:16px;margin-top:12px;padding-top:11px;border-top:1px solid var(--rule);font-size:12.5px}
+.cardacts button{background:none;border:0;padding:0;color:var(--accent);font-weight:500}
+.ctxbtn{background:none;border:0;padding:0;color:var(--accent);font-size:12px;font-weight:500;margin:7px 0 0 19px}
+.ctx{display:none;margin:8px 0 0 19px;font-size:13px;line-height:1.6;color:var(--ink-3);border-left:2px solid var(--rule);padding-left:11px}
+.ctx.open{display:block}
+.concord{margin:0 20px;padding:9px 0 0;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+
+/* ── divergence ──────────────────────────────── */
+.diverge{display:none;padding:0 20px 60px}
+.diverge.on{display:block}
+.dvback{background:none;border:0;padding:12px 0;color:var(--accent);font-size:12.5px;font-weight:500}
+.dvgroups{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);background:var(--paper-raise)}
+.dvg{padding:12px}
+.dvg+.dvg{border-left:1px solid var(--rule)}
+.dvg .h{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);font-weight:600;margin-bottom:7px}
+.dvg .s{font-size:12.5px;color:var(--ink-2);line-height:1.7}
+.axis{width:100%;border-collapse:collapse;margin-top:14px;font-size:12.5px;background:var(--paper-raise);border:1px solid var(--rule)}
+.axis caption{text-align:left;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:500;padding:0 0 7px}
+.axis th,.axis td{padding:8px 10px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
+.axis th{color:var(--ink-3);font-weight:400;width:34%}
+.axis thead th{color:var(--ink-2);font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;width:auto;border-bottom:1px solid var(--rule)}
+.axis td{color:var(--ink-2)}
+.axis tr.key td,.axis tr.key th{background:var(--evidence-tint);color:var(--ink)}
+.axis tr:last-child th,.axis tr:last-child td{border-bottom:0}
+.concentrate{margin-top:12px;font-size:12.5px;color:var(--ink-2);line-height:1.5;padding-left:11px;border-left:2px solid var(--evidence)}
+
+/* ── abstention ──────────────────────────────── */
+.abst{border:1px solid var(--boundary);background:var(--boundary-tint);border-radius:4px;padding:20px 22px;max-width:64ch}
+.abst .t{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--boundary);font-weight:600;margin-bottom:10px}
+.abst p{font-family:var(--serif);font-size:16.5px;line-height:1.6;margin:0 0 10px}
+.abst p:last-child{margin:0;color:var(--ink-2);font-size:15.5px}
+.bdrule{display:flex;align-items:center;gap:14px;margin:36px 0;max-width:64ch;
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--boundary);font-weight:600}
+.bdrule::before,.bdrule::after{content:"";flex:1;border-top:1px dashed var(--boundary);opacity:.55}
+.near{position:relative;padding-left:20px;margin-bottom:22px;max-width:64ch}
+.near::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:2px;background:var(--ink-3)}
+.near .h{font-family:var(--serif);font-size:16.5px;line-height:1.45}
+.near .m{font-size:12.5px;color:var(--ink-2);margin-top:4px;font-family:var(--mono)}
+.near .c{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+
+/* ── mobile sheet ────────────────────────────── */
+.mobonly{display:none}
+.mobile .mobonly{display:block}
+.mobile .evbar{display:flex}
+.evbar{display:none;position:sticky;bottom:0;margin-top:24px;border-top:1px solid var(--rule);background:var(--paper);
+  padding:13px 0;justify-content:space-between;align-items:center;font-size:13px}
+.evbar button{background:var(--accent);color:#fff;border:0;padding:9px 16px;border-radius:2px;font-size:13px;font-weight:500;min-height:40px}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--paper-raise);border-top:1px solid var(--rule);
+  box-shadow:var(--shadow);border-radius:8px 8px 0 0;max-height:72vh;overflow-y:auto;transform:translateY(101%);
+  transition:transform .22s cubic-bezier(.2,0,0,1),visibility 0s linear .22s;visibility:hidden}
+#sheet.on{transform:translateY(0);visibility:visible;
+  transition:transform .22s cubic-bezier(.2,0,0,1),visibility 0s linear 0s}
+#sheet .handle{width:34px;height:3px;background:var(--rule);border-radius:2px;margin:9px auto}
+#sheet .sh{padding:6px 20px 12px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--paper-raise)}
+#sheet .sh .t{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin-bottom:5px}
+#sheet .sh .q{font-family:var(--serif);font-size:15px;line-height:1.45;padding-left:10px;border-left:2px solid var(--ink)}
+#sheet .back{display:block;width:100%;background:none;border:0;border-top:1px solid var(--rule);padding:15px;color:var(--accent);font-weight:500;font-size:13.5px}
+.scrim{position:fixed;inset:0;background:rgba(22,24,26,.28);z-index:55;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+
+.screen{display:none}
+.screen.on{display:block}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<style id="depth">
+/* ═══════════════════════════════════════════════════════════
+   DEPTH PASS — ambient dimensionality
+   Restrained by rule: nothing above 10% shadow opacity,
+   nothing that reduces text contrast, nothing that moves
+   while you are reading.
+   ═══════════════════════════════════════════════════════════ */
+:root{
+  /* elevation ladder */
+  --e0: inset 0 0 0 1px rgba(22,24,26,.02);
+  --e1: 0 1px 1px rgba(22,24,26,.030), 0 2px 5px rgba(22,24,26,.028);
+  --e2: 0 1px 2px rgba(22,24,26,.035), 0 6px 16px rgba(22,24,26,.045), 0 1px 0 rgba(255,255,255,.7) inset;
+  --e3: 0 2px 4px rgba(22,24,26,.045), 0 14px 40px rgba(22,24,26,.075), 0 1px 0 rgba(255,255,255,.85) inset;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+}
+
+/* ── the ground ─────────────────────────────────────────── */
+body{background:#F6F1E7}
+#field{position:fixed;inset:0;z-index:0;pointer-events:none;display:block}
+/* faint scientific grid — reads as graph paper, not as a dashboard */
+#ground{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(22,24,26,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(22,24,26,.05) 1px,transparent 1px);
+  background-size:88px 88px;
+  mask-image:radial-gradient(ellipse 120% 90% at 50% 0%,#000 20%,transparent 78%);
+  -webkit-mask-image:radial-gradient(ellipse 120% 90% at 50% 0%,#000 20%,transparent 78%)}
+/* vignette + grain, always on top of the field, never over text */
+#atmos{position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:
+    radial-gradient(ellipse 78% 58% at 50% 30%,rgba(255,255,255,.34),transparent 66%),
+    radial-gradient(ellipse 130% 110% at 50% 50%,transparent 42%,rgba(22,24,26,.055) 100%)}
+#atmos::after{content:"";position:absolute;inset:0;background-image:var(--grain);
+  background-size:180px 180px;opacity:.16;mix-blend-mode:multiply}
+
+#frame{position:relative;z-index:3}
+#devbar{z-index:100}
+
+/* ── header: floats above the field ─────────────────────── */
+header{background:rgba(251,250,248,.38);backdrop-filter:saturate(140%) blur(14px);
+  -webkit-backdrop-filter:saturate(140%) blur(14px);
+  border-bottom:1px solid rgba(22,24,26,.06);
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 6px 20px -14px rgba(22,24,26,.22)}
+
+/* ── entry: the environment fills the frame; a wash tracks
+   the copy column itself (not a guessed fraction of .entry) so
+   it stays correct regardless of the grid's asymmetric split ── */
+.entry{position:relative;isolation:isolate}
+.hero-copy{position:relative;isolation:isolate}
+.hero-copy::before{content:"";position:absolute;z-index:-1;inset:-56px -64px;
+  background:radial-gradient(ellipse 72% 68% at 50% 46%,
+    rgba(249,247,243,.94) 0%,rgba(249,247,243,.88) 40%,rgba(249,247,243,.56) 68%,rgba(249,247,243,0) 92%)}
+.hero-copy > *{position:relative}
+/* the corpus reads densest through the left field and thins only
+   where the copy actually sits — never a fixed-percent guess */
+#field{mask-image:radial-gradient(ellipse 132% 112% at 32% 58%,
+    rgba(0,0,0,1) 0%,rgba(0,0,0,1) 36%,rgba(0,0,0,.55) 50%,rgba(0,0,0,.18) 61%,#000 73%);
+  -webkit-mask-image:radial-gradient(ellipse 132% 112% at 32% 58%,
+    rgba(0,0,0,1) 0%,rgba(0,0,0,1) 36%,rgba(0,0,0,.55) 50%,rgba(0,0,0,.18) 61%,#000 73%)}
+.composer{background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:var(--e2);transition:box-shadow .22s cubic-bezier(.2,0,0,1),border-color .12s,transform .22s cubic-bezier(.2,0,0,1)}
+.composer:hover{box-shadow:var(--e3)}
+.composer:focus-within{box-shadow:var(--e3),0 0 0 3px var(--accent-soft);transform:translateY(-1px)}
+.examples{position:relative}
+.ex{position:relative;border-radius:2px;transition:padding-left .16s cubic-bezier(.2,0,0,1),background .16s,box-shadow .16s,transform .16s}
+.ex:hover{background:rgba(255,255,255,.72);box-shadow:var(--e1);transform:translateX(2px)}
+h1.display{text-shadow:0 1px 0 rgba(255,255,255,.9)}
+
+/* ── answer surface: a sheet resting on the field ───────── */
+.answerwrap{position:relative;background:rgba(251,250,248,.94);
+  backdrop-filter:blur(18px) saturate(120%);-webkit-backdrop-filter:blur(18px) saturate(120%);
+  box-shadow:0 -1px 0 rgba(255,255,255,.8) inset, 0 18px 60px -30px rgba(22,24,26,.5);
+  border-left:1px solid rgba(22,24,26,.05);border-right:1px solid rgba(22,24,26,.05)}
+#s-abstain > .acol, #s-load > .acol{position:relative;background:rgba(251,250,248,.94);
+  backdrop-filter:blur(18px) saturate(120%);-webkit-backdrop-filter:blur(18px) saturate(120%);
+  box-shadow:0 18px 60px -30px rgba(22,24,26,.5);border-radius:2px}
+
+/* ── claims: lift on approach, never while reading ──────── */
+.claim{border-radius:0 3px 3px 0;transition:background .18s,box-shadow .18s,transform .18s cubic-bezier(.2,0,0,1)}
+.claim:hover{background:rgba(255,255,255,.66);box-shadow:0 1px 2px rgba(22,24,26,.03),0 6px 18px -10px rgba(22,24,26,.22);
+  transform:translateX(1px)}
+.claim.active{box-shadow:0 1px 2px rgba(22,24,26,.04),0 10px 26px -14px rgba(22,24,26,.3)}
+
+/* ── citation chips: small physical objects ─────────────── */
+.chip{box-shadow:0 1px 0 rgba(22,24,26,.045),0 1px 2px rgba(22,24,26,.03);
+  transition:transform .14s cubic-bezier(.2,0,0,1),box-shadow .14s,background .12s,border-color .12s,color .12s}
+.chip:hover,.chip.lit{transform:translateY(-1.5px);box-shadow:0 2px 3px rgba(22,24,26,.05),0 6px 14px -6px rgba(22,24,26,.28)}
+.chip:active{transform:translateY(0);box-shadow:0 1px 0 rgba(22,24,26,.06)}
+
+/* ── evidence rail: recessed, with depth on its contents ── */
+.rail{background:linear-gradient(180deg,#F2F0EB,#F5F3EF 220px);
+  box-shadow:inset 14px 0 22px -18px rgba(22,24,26,.34), inset 1px 0 0 rgba(22,24,26,.05);
+  border-left:0;perspective:1200px}
+.railhead{background:linear-gradient(180deg,rgba(242,240,235,.97),rgba(242,240,235,.86));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 10px 18px -16px rgba(22,24,26,.55)}
+.src{position:relative;transform-style:preserve-3d;
+  transition:background .18s,box-shadow .2s,transform .2s cubic-bezier(.2,0,0,1),opacity .18s}
+.src:hover{background:rgba(255,255,255,.62);box-shadow:0 1px 2px rgba(22,24,26,.03),0 10px 24px -14px rgba(22,24,26,.3);
+  transform:translateX(-2px)}
+.src.lit{box-shadow:0 2px 4px rgba(22,24,26,.04),0 16px 34px -18px rgba(22,24,26,.42),
+  inset 2px 0 0 var(--evidence);transform:translateX(-4px) scale(1.004);z-index:2}
+.src.dim{opacity:.3;transform:scale(.995)}
+.src.open{background:rgba(255,255,255,.8);box-shadow:0 2px 5px rgba(22,24,26,.045),0 18px 40px -22px rgba(22,24,26,.45)}
+.passage{background:rgba(255,255,255,.55);border-radius:0 2px 2px 0;
+  box-shadow:0 1px 2px rgba(22,24,26,.025)}
+.passage mark{border-radius:1px;box-shadow:-2px 0 0 var(--evidence),0 1px 2px rgba(22,24,26,.05)}
+
+/* ── cards: the three places enclosure is allowed ───────── */
+.card{background:rgba(255,255,255,.9);border:1px solid rgba(22,24,26,.06);border-radius:4px;
+  padding:14px;box-shadow:var(--e2);margin-left:19px}
+.abst{box-shadow:var(--e2),0 0 0 1px rgba(154,91,63,.12);
+  background:linear-gradient(180deg,#F9F1EC,#F5EAE3)}
+.axis,.dvgroups{box-shadow:var(--e1);border-radius:3px;overflow:hidden}
+.basis{background:rgba(255,255,255,.5);border-radius:3px;padding:16px 14px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 2px rgba(22,24,26,.025)}
+
+/* ── follow-ups & buttons ───────────────────────────────── */
+.fu{border-radius:2px;transition:padding-left .16s cubic-bezier(.2,0,0,1),background .16s,box-shadow .16s}
+.fu:hover{background:rgba(255,255,255,.7);box-shadow:var(--e1)}
+.evbar{background:rgba(251,250,248,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 -8px 20px -16px rgba(22,24,26,.5)}
+.evbar button{box-shadow:0 1px 2px rgba(22,24,26,.12),0 6px 14px -8px rgba(27,77,62,.6)}
+#sheet{box-shadow:0 -2px 6px rgba(22,24,26,.06),0 -24px 60px -20px rgba(22,24,26,.4)}
+
+/* ── retrieval steps rise as they resolve ───────────────── */
+.step{transform:translateY(3px);transition:color .24s,opacity .24s,transform .28s cubic-bezier(.2,0,0,1)}
+.step.on{transform:translateY(0)}
+
+/* ── mobile: atmosphere stays visible, readability comes from blur ──
+   Was near-opaque (.96) — that hid the field animation almost entirely
+   on phones. Dropping opacity and raising blur keeps text legible
+   (the linework is diffused, not sharp, behind it) while letting the
+   background actually read as present, not just a flat paper panel. */
+#frame.mobile{background:rgba(251,250,248,.30);backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);box-shadow:0 0 90px -30px rgba(22,24,26,.55);
+  border-left:1px solid rgba(22,24,26,.06);border-right:1px solid rgba(22,24,26,.06)}
+.mobile .answerwrap{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;border:0}
+
+/* ── the honest exit ────────────────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  #field{opacity:.5}
+  .claim:hover,.src:hover,.chip:hover,.ex:hover,.composer:focus-within,.src.lit{transform:none}
+}
+@media (max-width:768px){ #ground{opacity:.5} #atmos::after{opacity:.1} }
+
+
+/* ═══════════════════════════════════════════════════════════
+   DARK THEME — "the living memory of medicine"
+   A biomedical knowledge environment, not a SaaS dark mode.
+   Toggle with the devbar; light paper-and-ink stays intact
+   underneath and is what ships if no dark theme is chosen.
+   ═══════════════════════════════════════════════════════════ */
+:root[data-theme="dark"]{
+  --paper:#080B0C; --paper-sunk:#050708; --paper-raise:#0E1415;
+  --ink:#ECEEEF; --ink-2:#A7ADB3; --ink-3:#7E858B; --rule:rgba(255,255,255,.10);
+  --accent:#5FD1C0; --accent-soft:rgba(95,209,192,.16);
+  --evidence:#E8B54A; --evidence-tint:rgba(232,181,74,.14);
+  --boundary:#E2937A; --boundary-tint:rgba(226,147,122,.13);
+  --glass:rgba(19,24,28,.62); --glass-strong:rgba(15,19,22,.88);
+  --glass-border:rgba(255,255,255,.09);
+  --glow-accent:95,209,192; --glow-warm:232,181,74;
+}
+:root[data-theme="dark"] body{background:var(--paper)}
+:root[data-theme="dark"] #ground{
+  background-image:
+    linear-gradient(rgba(255,255,255,.058) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.058) 1px,transparent 1px)}
+:root[data-theme="dark"] #atmos{
+  background:
+    radial-gradient(ellipse 70% 55% at 22% 20%,rgba(95,209,192,.05),transparent 60%),
+    radial-gradient(ellipse 60% 50% at 82% 72%,rgba(232,181,74,.035),transparent 62%),
+    radial-gradient(ellipse 140% 120% at 50% 50%,transparent 40%,rgba(0,0,0,.5) 100%)}
+:root[data-theme="dark"] #atmos::after{opacity:.10;mix-blend-mode:overlay}
+
+/* cinematic pooled lighting — layer 5. three fixed light sources,
+   never evenly lighting the scene: a cyan key behind the structure,
+   a faint blue-violet fill upper-right, a restrained amber rim low
+   right. Each is its own blurred blob so edges stay soft. */
+:root[data-theme="dark"] #glow{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;
+  transition:opacity 1s ease}
+:root[data-theme="dark"] #glow.on{opacity:1}
+:root[data-theme="dark"] #glow.dim{opacity:.4}
+:root[data-theme="dark"] #glow::before{content:"";position:absolute;left:16%;top:55%;width:980px;height:760px;
+  transform:translate(-50%,-50%);border-radius:50%;filter:blur(110px);
+  background:radial-gradient(ellipse,rgba(var(--glow-accent),.14),transparent 68%)}
+:root[data-theme="dark"] #glow::after{content:"";position:absolute;right:6%;top:14%;width:640px;height:520px;
+  transform:translate(50%,-50%);border-radius:50%;filter:blur(100px);
+  background:radial-gradient(ellipse,rgba(124,131,214,.075),transparent 70%)}
+:root[data-theme="dark"] .glow-rim{position:absolute;right:10%;bottom:6%;width:520px;height:420px;
+  transform:translate(30%,30%);border-radius:50%;filter:blur(95px);
+  background:radial-gradient(ellipse,rgba(var(--glow-warm),.06),transparent 72%)}
+
+:root[data-theme="dark"] header{background:linear-gradient(180deg,rgba(5,7,8,.28),rgba(5,7,8,0));
+  border-bottom:1px solid transparent;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  box-shadow:none}
+:root[data-theme="dark"] header::after{content:"";position:absolute;left:0;right:0;bottom:-32px;height:32px;
+  background:linear-gradient(180deg,rgba(5,7,8,.28),transparent);pointer-events:none}
+:root[data-theme="dark"] .wordmark{color:var(--ink)}
+:root[data-theme="dark"] header nav button:hover{color:var(--ink)}
+
+:root[data-theme="dark"] .hero-copy::before{
+  background:radial-gradient(ellipse 70% 64% at 50% 46%,
+    rgba(5,7,8,.82) 0%,rgba(5,7,8,.72) 40%,rgba(5,7,8,.42) 66%,rgba(5,7,8,0) 90%)}
+:root[data-theme="dark"] h1.display{text-shadow:0 1px 24px rgba(95,209,192,.18)}
+:root[data-theme="dark"] .sub{color:var(--ink-2)}
+:root[data-theme="dark"] .philosophy{color:var(--ink-3);border-top-color:var(--rule)}
+
+:root[data-theme="dark"] .composer{background:var(--glass);backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  border:1px solid var(--glass-border);
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 20px 60px -30px rgba(0,0,0,.9),0 0 0 0 rgba(var(--glow-accent),0);
+  transition:box-shadow .3s cubic-bezier(.2,0,0,1),border-color .2s}
+:root[data-theme="dark"] .composer:hover{border-color:rgba(255,255,255,.16)}
+:root[data-theme="dark"] .composer:focus-within{border-color:rgba(95,209,192,.45);
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 20px 60px -30px rgba(0,0,0,.9),0 0 0 3px rgba(var(--glow-accent),.14),0 0 40px -8px rgba(var(--glow-accent),.25);
+  transform:translateY(-1px)}
+:root[data-theme="dark"] .composer textarea::placeholder{color:var(--ink-3)}
+:root[data-theme="dark"] .composer-meta{color:var(--ink-3)}
+:root[data-theme="dark"] .ex{border-top-color:var(--rule)}
+:root[data-theme="dark"] .ex:last-child{border-bottom-color:var(--rule)}
+:root[data-theme="dark"] .ex:hover{background:rgba(255,255,255,.035)}
+:root[data-theme="dark"] .ex .cat{color:var(--ink-3)}
+:root[data-theme="dark"] .ex .q{color:var(--ink)}
+:root[data-theme="dark"] .ex:hover .q{color:var(--accent)}
+:root[data-theme="dark"] .qhead{border-bottom-color:var(--rule)}
+
+/* the answer stays a near-opaque sheet — glass everywhere would
+   cost the one thing the product cannot trade away: readability */
+:root[data-theme="dark"] .answerwrap{background:var(--glass-strong);
+  backdrop-filter:blur(22px) saturate(120%);-webkit-backdrop-filter:blur(22px) saturate(120%);
+  box-shadow:0 -1px 0 rgba(255,255,255,.04) inset, 0 30px 90px -40px rgba(0,0,0,.9);
+  border-left:1px solid var(--glass-border);border-right:1px solid var(--glass-border)}
+:root[data-theme="dark"] #s-abstain > .acol, :root[data-theme="dark"] #s-load > .acol{
+  background:var(--glass-strong);backdrop-filter:blur(22px) saturate(120%);
+  -webkit-backdrop-filter:blur(22px) saturate(120%);
+  box-shadow:0 30px 90px -40px rgba(0,0,0,.9)}
+
+:root[data-theme="dark"] .label{color:var(--ink-3)}
+:root[data-theme="dark"] .claim[data-s=none] p{color:var(--ink-2)}
+:root[data-theme="dark"] .claim:hover{background:rgba(255,255,255,.035);
+  box-shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6)}
+:root[data-theme="dark"] .claim.active{background:linear-gradient(90deg,rgba(95,209,192,.09),transparent);
+  box-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.65)}
+:root[data-theme="dark"] .claim.active::before{background:var(--accent)}
+:root[data-theme="dark"] .divnote button{color:var(--accent)}
+
+:root[data-theme="dark"] .chip{background:rgba(255,255,255,.03);border-color:var(--rule);color:var(--ink-2);
+  box-shadow:none}
+:root[data-theme="dark"] .chip:hover,:root[data-theme="dark"] .chip.lit{
+  border-color:rgba(232,181,74,.55);background:rgba(232,181,74,.10);color:var(--ink);
+  box-shadow:0 0 0 1px rgba(232,181,74,.12),0 6px 18px -8px rgba(232,181,74,.35)}
+:root[data-theme="dark"] .chip.on{background:var(--evidence);border-color:var(--evidence);color:#151005}
+
+:root[data-theme="dark"] .rail{background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006) 240px);
+  box-shadow:inset 16px 0 26px -20px rgba(0,0,0,.7), inset 1px 0 0 var(--rule)}
+:root[data-theme="dark"] .railhead{background:linear-gradient(180deg,rgba(13,16,19,.94),rgba(13,16,19,.7));
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 12px 22px -18px rgba(0,0,0,.8)}
+:root[data-theme="dark"] .railtitle{color:var(--ink-3)}
+:root[data-theme="dark"] .railcount{color:var(--ink-2)}
+:root[data-theme="dark"] .tabs{border-bottom-color:var(--rule)}
+:root[data-theme="dark"] .tab{color:var(--ink-3)}
+:root[data-theme="dark"] .tab[aria-selected=true]{color:var(--ink)}
+:root[data-theme="dark"] .focusbar{background:rgba(232,181,74,.09);border-left-color:var(--evidence)}
+:root[data-theme="dark"] .focusbar em{color:var(--ink)}
+:root[data-theme="dark"] .focusbar button{color:var(--accent)}
+:root[data-theme="dark"] .concord{color:var(--ink-3)}
+:root[data-theme="dark"] .src{border-bottom-color:var(--rule)}
+:root[data-theme="dark"] .src.lit{background:rgba(232,181,74,.06);
+  box-shadow:0 2px 4px rgba(0,0,0,.3),0 18px 40px -20px rgba(232,181,74,.28),inset 2px 0 0 var(--evidence)}
+:root[data-theme="dark"] .src:hover{background:rgba(255,255,255,.03)}
+:root[data-theme="dark"] .src.open{background:rgba(255,255,255,.035)}
+:root[data-theme="dark"] .name{color:var(--ink)}
+:root[data-theme="dark"] .src.uncited .name{color:var(--ink-2)}
+:root[data-theme="dark"] .meta{color:var(--ink-2)}
+:root[data-theme="dark"] .tag{border-color:var(--rule);color:var(--ink-3)}
+:root[data-theme="dark"] .usecount{color:var(--evidence)}
+:root[data-theme="dark"] .usecount.no{color:var(--ink-3)}
+:root[data-theme="dark"] .passage{background:rgba(255,255,255,.025);color:var(--ink-2);border-left-color:var(--rule)}
+:root[data-theme="dark"] .passage mark{background:rgba(232,181,74,.16);color:var(--ink);box-shadow:-2px 0 0 var(--evidence)}
+:root[data-theme="dark"] .ctxbtn,:root[data-theme="dark"] .cardacts button{color:var(--accent)}
+:root[data-theme="dark"] .ctx{color:var(--ink-3);border-left-color:var(--rule)}
+
+:root[data-theme="dark"] .card{background:rgba(255,255,255,.03);border-color:var(--glass-border)}
+:root[data-theme="dark"] .cardsec .t{color:var(--ink-3)}
+:root[data-theme="dark"] .supports{color:var(--ink);border-left-color:var(--ink-2)}
+:root[data-theme="dark"] .doi{color:var(--ink-2)}
+:root[data-theme="dark"] .facets dt{color:var(--ink-3)}
+:root[data-theme="dark"] .facets dd{color:var(--ink-2)}
+:root[data-theme="dark"] .cardacts{border-top-color:var(--rule)}
+
+:root[data-theme="dark"] .lims li{color:var(--ink-2)}
+:root[data-theme="dark"] .lims li::before{background:var(--ink-3)}
+:root[data-theme="dark"] .basis{background:rgba(255,255,255,.025);border-top-color:var(--rule);border-bottom-color:var(--rule);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+:root[data-theme="dark"] .basisline{color:var(--ink-2)}
+:root[data-theme="dark"] .basisline .n{color:var(--ink)}
+:root[data-theme="dark"] .basis button{color:var(--accent)}
+:root[data-theme="dark"] .basisdetail{border-top-color:var(--rule)}
+:root[data-theme="dark"] .brow dt{color:var(--ink-3)}
+:root[data-theme="dark"] .brow dd{color:var(--ink-2)}
+:root[data-theme="dark"] .brow dd.bd{color:var(--boundary)}
+:root[data-theme="dark"] .fu{border-top-color:var(--rule)}
+:root[data-theme="dark"] .fu:last-child{border-bottom-color:var(--rule)}
+:root[data-theme="dark"] .fu{color:var(--ink)}
+:root[data-theme="dark"] .fu span{color:var(--ink-3)}
+:root[data-theme="dark"] .fu:hover{background:rgba(255,255,255,.035);color:var(--accent)}
+:root[data-theme="dark"] .fu:hover span{color:var(--accent)}
+
+:root[data-theme="dark"] .evbar{background:rgba(10,12,14,.85);backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);box-shadow:0 -10px 24px -18px rgba(0,0,0,.8)}
+:root[data-theme="dark"] .evbar span{color:var(--ink-2)}
+:root[data-theme="dark"] .evbar button{background:var(--accent);color:#062621;
+  box-shadow:0 1px 2px rgba(0,0,0,.3),0 8px 20px -10px rgba(95,209,192,.5)}
+:root[data-theme="dark"] #sheet{background:var(--glass-strong);border-top-color:var(--glass-border);
+  box-shadow:0 -2px 6px rgba(0,0,0,.4),0 -30px 70px -20px rgba(0,0,0,.85)}
+:root[data-theme="dark"] .handle{background:var(--rule)}
+:root[data-theme="dark"] .sh{border-bottom-color:var(--rule);background:var(--glass-strong)}
+:root[data-theme="dark"] .sh .t{color:var(--ink-3)}
+:root[data-theme="dark"] .sh .q{color:var(--ink);border-left-color:var(--ink-2)}
+:root[data-theme="dark"] .back{border-top-color:var(--rule);color:var(--accent)}
+:root[data-theme="dark"] .scrim{background:rgba(0,0,0,.5)}
+
+:root[data-theme="dark"] .abst{background:linear-gradient(180deg,rgba(226,147,122,.10),rgba(226,147,122,.05));
+  border-color:rgba(226,147,122,.35);box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 20px 50px -28px rgba(0,0,0,.7)}
+:root[data-theme="dark"] .abst .t{color:var(--boundary)}
+:root[data-theme="dark"] .abst p:last-child{color:var(--ink-2)}
+:root[data-theme="dark"] .bdrule{color:var(--boundary)}
+:root[data-theme="dark"] .bdrule::before,:root[data-theme="dark"] .bdrule::after{border-top-color:var(--boundary);opacity:.4}
+:root[data-theme="dark"] .near::before{background:var(--ink-3)}
+:root[data-theme="dark"] .near .m{color:var(--ink-2)}
+
+:root[data-theme="dark"] .axis,:root[data-theme="dark"] .dvgroups{background:rgba(255,255,255,.025);border-color:var(--rule)}
+:root[data-theme="dark"] .dvg+.dvg{border-left-color:var(--rule)}
+:root[data-theme="dark"] .dvg .h{color:var(--ink-2)}
+:root[data-theme="dark"] .dvg .s{color:var(--ink-2)}
+:root[data-theme="dark"] .axis th,:root[data-theme="dark"] .axis td{border-bottom-color:var(--rule)}
+:root[data-theme="dark"] .axis th{color:var(--ink-3)}
+:root[data-theme="dark"] .axis thead th{color:var(--ink-2)}
+:root[data-theme="dark"] .axis td{color:var(--ink-2)}
+:root[data-theme="dark"] .axis tr.key td,:root[data-theme="dark"] .axis tr.key th{background:rgba(232,181,74,.09);color:var(--ink)}
+:root[data-theme="dark"] .concentrate{color:var(--ink-2);border-left-color:var(--evidence)}
+:root[data-theme="dark"] .dvback{color:var(--accent)}
+
+:root[data-theme="dark"] #frame.mobile{background:rgba(10,12,14,.72);backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);box-shadow:0 0 120px -30px rgba(0,0,0,.9);
+  border-left:1px solid var(--glass-border);border-right:1px solid var(--glass-border)}
+
+:root[data-theme="dark"] .step{color:var(--ink-3)}
+:root[data-theme="dark"] .step.on{color:var(--ink)}
+:root[data-theme="dark"] .step .mark{color:var(--ink-3)}
+:root[data-theme="dark"] .step.on .mark{color:var(--accent)}
+:root[data-theme="dark"] .step .num{color:var(--ink-2)}
+
+:root[data-theme="dark"] a{color:var(--accent)}
+:root[data-theme="dark"] :focus-visible{outline-color:var(--accent)}
+:root[data-theme="dark"] #devbar{background:#000;border-top:1px solid var(--rule)}
+
+</style>
+</head>
+<body>
+
+
+<canvas id="field" aria-hidden="true"></canvas>
+<div id="ground" aria-hidden="true"></div>
+<div id="glow" aria-hidden="true"><div class="glow-rim"></div></div>
+<div id="atmos" aria-hidden="true"></div>
+<div id="frame">
+  <header>
+    <div class="brand">
+      <span class="wordmark">AskStein</span>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" onclick="toggleSidebar()">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <aside id="sidebar" aria-hidden="true">
+    <button class="sidebar-close" aria-label="Close menu" onclick="closeSidebar()">✕</button>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="current">Home</a>
+      <a href="about.html">About</a>
+      <a href="corpus.html">Corpus</a>
+      <a href="documentation.html">Documentation</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+  </aside>
+
+  <!-- ═══ ENTRY ═══ -->
+  <section class="screen on" id="s-entry">
+    <div class="entry">
+     <div class="hero-copy">
+      <p class="eyebrow">Orthopedic evidence, retrieved</p>
+      <h1 class="display">Ask the<br>orthopedic<br>literature.</h1>
+
+      <div class="composer">
+        <button class="icon-btn plus" type="button" onclick="composerAttach()" aria-label="Add attachment">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <label for="q" class="sr">Ask a question about the orthopedic literature</label>
+        <textarea id="q" rows="1" placeholder="What does the evidence say about…"
+          aria-describedby="q-error"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ask()}"></textarea>
+        <button class="icon-btn mic" type="button" id="mic-btn" onclick="composerMic()" aria-pressed="false" aria-label="Voice input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+        </button>
+        <button class="go" onclick="ask()" aria-label="Ask">⏎</button>
+      </div>
+      <p class="field-error" id="q-error" role="alert" hidden>Type a question before asking — AskStein
+      needs something to search for.</p>
+      <p class="composer-status" id="composer-status" role="status" aria-live="polite"></p>
+
+      <p class="philosophy">AskStein answers only from its corpus. When the evidence isn't there, it says so
+      rather than guessing.</p>
+     </div>
+    </div>
+  </section>
+
+  <!-- ═══ RETRIEVAL ═══ -->
+  <section class="screen" id="s-load">
+    <div class="acol" style="max-width:760px;margin:0 auto">
+      <h2 class="qhead" id="loadq"></h2>
+      <div class="steps">
+        <div class="step" id="st0"><span class="mark">○</span><span>Searched <span class="num">338,701</span> passages across the orthopedic corpus</span></div>
+        <div class="step" id="st1"><span class="mark">○</span><span>Retrieved <span class="num">17</span> passages from <span class="num">9</span> papers · <span class="num">2010–2023</span></span></div>
+        <div class="step" id="st2"><span class="mark">○</span><span>Composing synthesis</span></div>
+        <div class="step" id="st3"><span class="mark">○</span><span>Verifying citations · <span class="num">9 of 9</span> resolved</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ANSWER ═══ -->
+  <section class="screen" id="s-answer">
+    <div class="answerwrap">
+      <div class="acol">
+        <h2 class="qhead" id="answerq">Is early ACL reconstruction better than delayed in adolescent athletes?</h2>
+        <p class="demo-note" id="answer-demo-note" hidden>This is a fixed demo response used to illustrate
+        the interface — AskStein isn't wired to a live corpus in this prototype, so the evidence below
+        doesn't reflect your exact question yet.</p>
+
+        <p class="direct">Retrieved evidence favors early reconstruction in skeletally immature athletes,
+        primarily to prevent secondary meniscal injury. Evidence on functional outcome at two years is
+        less consistent.</p>
+
+        <div class="label">Key evidence</div>
+
+        <div class="claim" data-s="well" data-cid="c1" tabindex="0">
+          <p>Delay beyond 12 weeks is associated with higher rates of secondary meniscal injury.</p>
+          <div class="chips">
+            <button class="chip" data-src="ardern" onmouseenter="lit('ardern')" onmouseleave="unlit()" onclick="focusClaim('c1','Delay beyond 12 weeks is associated with higher rates of secondary meniscal injury.')">Ardern 2018</button>
+            <button class="chip" data-src="dumont" onmouseenter="lit('dumont')" onmouseleave="unlit()" onclick="focusClaim('c1','Delay beyond 12 weeks is associated with higher rates of secondary meniscal injury.')">Dumont 2012</button>
+            <button class="chip" onclick="focusClaim('c1','Delay beyond 12 weeks is associated with higher rates of secondary meniscal injury.')">+2</button>
+            <span class="statelabel">Well supported · 4 sources</span>
+          </div>
+        </div>
+
+        <div class="claim" data-s="divided" data-cid="c2" tabindex="0">
+          <p>Functional outcome scores at two years show no consistent advantage for either timing.</p>
+          <div class="divnote">
+            <span class="statelabel">Evidence divided · 2 favor early, 3 find no difference</span>
+            <button onclick="showDiverge()">Compare →</button>
+          </div>
+        </div>
+
+        <div class="claim" data-s="well" data-cid="c3" tabindex="0">
+          <p>Physeal-sparing techniques show low growth-disturbance rates in reported series.</p>
+          <div class="chips">
+            <button class="chip" data-src="frosch" onmouseenter="lit('frosch')" onmouseleave="unlit()" onclick="focusClaim('c3','Physeal-sparing techniques show low growth-disturbance rates in reported series.')">Frosch 2010</button>
+            <button class="chip" data-src="kocher" onmouseenter="lit('kocher')" onmouseleave="unlit()" onclick="focusClaim('c3','Physeal-sparing techniques show low growth-disturbance rates in reported series.')">Kocher 2019</button>
+            <span class="statelabel">Well supported · 2 sources</span>
+          </div>
+        </div>
+
+        <div class="claim" data-s="limited" data-cid="c4" tabindex="0">
+          <p>One retrieved series reports higher graft-rupture rates with early return to pivoting sport,
+          independent of surgical timing.</p>
+          <div class="chips">
+            <button class="chip" data-src="dumont" onmouseenter="lit('dumont')" onmouseleave="unlit()" onclick="focusClaim('c4','Higher graft-rupture rates with early return to pivoting sport.')">Dumont 2012</button>
+            <span class="statelabel">Limited · single source</span>
+          </div>
+        </div>
+
+        <div class="claim" data-s="none" data-cid="c5" tabindex="0">
+          <p>Timing decisions are also shaped by physeal status, meniscal findings at presentation, and
+          the athlete's competitive calendar.</p>
+          <div class="chips"><span class="statelabel">Framing · not directly evidenced</span></div>
+        </div>
+
+        <div class="gap">
+          <div class="t">Not found in corpus</div>
+          <p>No retrieved evidence addresses outcomes in patients under 12. This part of the question is
+          unanswered.</p>
+        </div>
+
+        <div class="label">Limitations</div>
+        <ul class="lims">
+          <li>Most evidence is cohort-level; 2 of 9 sources are randomized</li>
+          <li>Definitions of "early" range from under 6 weeks to under 6 months across studies</li>
+          <li>Outcome measures are not harmonized (IKDC, KOOS, Lysholm, Tegner)</li>
+        </ul>
+
+        <div class="label">Evidence basis</div>
+        <div class="basis">
+          <div class="basisline">
+            <span class="n">17 passages · 9 papers · 2010–2023 · 2 RCT · 5 cohort · 2 review</span>
+            <button onclick="var d=document.getElementById('bd');d.classList.toggle('open');this.textContent=d.classList.contains('open')?'Details ▾':'Details ▸'">Details ▸</button>
+          </div>
+          <div class="basisdetail" id="bd">
+            <dl style="margin:0">
+              <div class="brow"><dt>Searched</dt><dd>Orthopedic corpus · 338,701 passages · 13,387 papers</dd></div>
+              <div class="brow"><dt>Retrieved</dt><dd>17 passages · 9 papers</dd></div>
+              <div class="brow"><dt>Used</dt><dd>9 passages across 4 claims</dd></div>
+              <div class="brow"><dt>Verified</dt><dd>9 of 9 citations resolved</dd></div>
+              <div class="brow"><dt>Not covered</dt><dd class="bd">No retrieved evidence for patients under 12</dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <div class="label">Continue</div>
+        <div class="follow">
+          <button class="fu" onclick="ask('answer')"><span>→</span>What defines "early" across these studies?</button>
+          <button class="fu" onclick="ask('answer')"><span>→</span>Growth-disturbance rates by physeal-sparing technique</button>
+          <button class="fu" onclick="ask('abstain')"><span>→</span>Evidence in patients under 12</button>
+        </div>
+
+        <div class="fcomposer">
+          <div class="composer">
+            <label for="fq-answer" class="sr">Ask a follow-up question</label>
+            <textarea id="fq-answer" rows="1" placeholder="Ask a follow-up — the thread's sources stay in view"></textarea>
+            <button class="go" aria-label="Ask">⏎</button>
+          </div>
+          <div class="composer-meta"><span>Thread: ACL timing in adolescent athletes · 9 sources</span><span>New question ⌘K</span></div>
+        </div>
+
+        <!-- mobile evidence bar -->
+        <div class="evbar mobonly">
+          <span>17 passages · 9 papers</span>
+          <button onclick="openSheet('Delay beyond 12 weeks is associated with higher rates of secondary meniscal injury.')">Evidence</button>
+        </div>
+      </div>
+
+      <!-- rail -->
+      <aside class="rail" aria-label="Evidence">
+        <div class="railhead">
+          <div class="railtitle">Evidence</div>
+          <div class="railcount">17 passages · 9 papers</div>
+          <div class="tabs" role="tablist">
+            <button class="tab" role="tab" aria-selected="true" onclick="tab(this,'all')">All (9)</button>
+            <button class="tab" role="tab" aria-selected="false" onclick="tab(this,'cited')">Cited (5)</button>
+          </div>
+          <div class="focusbar" id="focusbar">
+            Showing evidence for: <em id="focusq"></em>
+            <button onclick="clearFocus()">← Show all</button>
+          </div>
+        </div>
+
+        <div class="srcs" id="srcs">
+          <div class="concord">Cited sources · concordant</div>
+
+          <article class="src" id="src-ardern" data-cited="1">
+            <button class="srchead" onclick="toggleSrc('ardern')">
+              <span class="caret">▸</span><span class="name">Ardern et al. 2018</span>
+            </button>
+            <div class="meta">Br J Sports Med · RCT · <span class="n">n=180</span></div>
+            <div class="usecount">Cited in 1 claim</div>
+            <div class="passage">…patients randomized to delayed reconstruction <mark>demonstrated a 2.8-fold increase in medial meniscal tears at 24-month follow-up (95% CI 1.6–4.9, p=0.002)</mark> compared with the early group…</div>
+            <button class="ctxbtn" onclick="var c=this.nextElementSibling;c.classList.toggle('open');this.textContent=c.classList.contains('open')?'Hide context ▴':'Show context ▾'">Show context ▾</button>
+            <div class="ctx">Participants were recruited from four tertiary sports-medicine centres between 2012 and 2015. Delayed reconstruction was defined as surgery performed more than 12 weeks after injury. All patients followed an identical rehabilitation protocol…</div>
+            <div class="card">
+              <div class="cardsec">
+                <div class="t">Supports</div>
+                <div class="supports">Delay beyond 12 weeks is associated with higher rates of secondary meniscal injury.</div>
+              </div>
+              <div class="cardsec">
+                <div class="t">Identifier</div>
+                <div class="doi">DOI 10.1136/bjsports-2017-098401</div>
+              </div>
+              <div class="cardsec">
+                <div class="t">Study characteristics</div>
+                <dl class="facets">
+                  <dt>Population</dt><dd>Athletes 13–19, closed physes</dd>
+                  <dt>Follow-up</dt><dd>24 months</dd>
+                  <dt>Outcome</dt><dd>Secondary meniscal injury</dd>
+                  <dt>Design</dt><dd>Randomized controlled trial</dd>
+                </dl>
+              </div>
+              <div class="cardacts">
+                <button>Open paper ↗</button><button>Save ⭑</button><button>Copy citation</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="src" id="src-dumont" data-cited="1">
+            <button class="srchead" onclick="toggleSrc('dumont')">
+              <span class="caret">▸</span><span class="name">Dumont et al. 2012</span>
+            </button>
+            <div class="meta">Am J Sports Med · Cohort · <span class="n">n=370</span></div>
+            <div class="usecount">Cited in 2 claims</div>
+            <div class="passage">…among 370 skeletally immature patients, <mark>surgical delay greater than 150 days independently predicted medial meniscal tear (OR 4.1)</mark>, and graft rupture correlated with early return to pivoting sport…</div>
+            <button class="ctxbtn" onclick="var c=this.nextElementSibling;c.classList.toggle('open');this.textContent=c.classList.contains('open')?'Hide context ▴':'Show context ▾'">Show context ▾</button>
+            <div class="ctx">Retrospective review of consecutive patients at a single paediatric centre. Skeletal maturity was assessed radiographically. Multivariate analysis adjusted for age, sex, and mechanism of injury…</div>
+            <div class="card">
+              <div class="cardsec"><div class="t">Supports</div>
+                <div class="supports">Delay beyond 12 weeks is associated with higher rates of secondary meniscal injury.</div></div>
+              <div class="cardsec"><div class="t">Identifier</div><div class="doi">DOI 10.1177/0363546512456846</div></div>
+              <div class="cardsec"><div class="t">Study characteristics</div>
+                <dl class="facets">
+                  <dt>Population</dt><dd>Skeletally immature, mean age 14.2</dd>
+                  <dt>Follow-up</dt><dd>Mean 38 months</dd>
+                  <dt>Outcome</dt><dd>Meniscal tear, graft rupture</dd>
+                  <dt>Design</dt><dd>Retrospective cohort</dd>
+                </dl></div>
+              <div class="cardacts"><button>Open paper ↗</button><button>Save ⭑</button><button>Copy citation</button></div>
+            </div>
+          </article>
+
+          <article class="src" id="src-frosch" data-cited="1">
+            <button class="srchead" onclick="toggleSrc('frosch')">
+              <span class="caret">▸</span><span class="name">Frosch et al. 2010</span>
+            </button>
+            <div class="meta">Arthroscopy · Systematic review · <span class="n">55 studies</span></div>
+            <div class="usecount">Cited in 1 claim</div>
+            <div class="passage">…across 55 studies of physeal-sparing reconstruction, <mark>growth disturbance was reported in 1.8% of cases</mark>, with leg-length discrepancy exceeding 1 cm in 0.9%…</div>
+            <div class="card">
+              <div class="cardsec"><div class="t">Supports</div>
+                <div class="supports">Physeal-sparing techniques show low growth-disturbance rates in reported series.</div></div>
+              <div class="cardsec"><div class="t">Identifier</div><div class="doi">DOI 10.1016/j.arthro.2010.05.008</div></div>
+              <div class="cardsec"><div class="t">Study characteristics</div>
+                <dl class="facets">
+                  <dt>Population</dt><dd>Open physes, pooled</dd>
+                  <dt>Follow-up</dt><dd>Variable, 12–96 months</dd>
+                  <dt>Outcome</dt><dd>Growth disturbance</dd>
+                  <dt>Design</dt><dd>Systematic review</dd>
+                </dl></div>
+              <div class="cardacts"><button>Open paper ↗</button><button>Save ⭑</button><button>Copy citation</button></div>
+            </div>
+          </article>
+
+          <article class="src" id="src-kocher" data-cited="1">
+            <button class="srchead" onclick="toggleSrc('kocher')">
+              <span class="caret">▸</span><span class="name">Kocher et al. 2019</span>
+            </button>
+            <div class="meta">J Bone Joint Surg · Cohort · <span class="n">n=237</span></div>
+            <div class="usecount">Cited in 1 claim</div>
+            <div class="passage">…at a mean of 6.2 years, <mark>no clinically significant angular deformity was observed in the physeal-sparing cohort</mark>, and return-to-sport rate was 92%…</div>
+            <div class="card">
+              <div class="cardsec"><div class="t">Supports</div>
+                <div class="supports">Physeal-sparing techniques show low growth-disturbance rates in reported series.</div></div>
+              <div class="cardsec"><div class="t">Identifier</div><div class="doi">DOI 10.2106/JBJS.18.01034</div></div>
+              <div class="cardacts"><button>Open paper ↗</button><button>Save ⭑</button><button>Copy citation</button></div>
+            </div>
+          </article>
+
+          <div class="concord">Retrieved · not cited</div>
+
+          <article class="src uncited" id="src-anderson" data-cited="0">
+            <button class="srchead" onclick="toggleSrc('anderson')">
+              <span class="caret">▸</span><span class="name">Anderson et al. 2015</span>
+            </button>
+            <div class="meta">Am J Sports Med · RCT · <span class="n">n=94</span> <span class="tag">Not cited</span></div>
+            <div class="usecount no">Retrieved but not used in the synthesis</div>
+            <div class="passage">…IKDC scores at 24 months did not differ significantly between early and delayed groups (mean difference 2.1, p=0.43)…</div>
+            <div class="card">
+              <div class="cardsec"><div class="t">Why it wasn't cited</div>
+                <div class="supports" style="border-color:var(--ink-3);color:var(--ink-2)">Relevant to the divided claim on functional outcome; shown in the comparison view rather than as direct support.</div></div>
+              <div class="cardacts"><button>Open paper ↗</button><button>Save ⭑</button></div>
+            </div>
+          </article>
+
+          <article class="src uncited" id="src-lee" data-cited="0">
+            <button class="srchead" onclick="toggleSrc('lee')">
+              <span class="caret">▸</span><span class="name">Lee et al. 2021</span>
+            </button>
+            <div class="meta">Knee Surg Sports Traumatol · Cohort · <span class="n">n=112</span> <span class="tag">Not cited</span></div>
+            <div class="usecount no">Retrieved but not used in the synthesis</div>
+            <div class="passage">…rehabilitation compliance was the strongest predictor of Tegner score at final follow-up, exceeding the effect of surgical timing…</div>
+          </article>
+        </div>
+
+        <!-- divergence -->
+        <div class="diverge" id="diverge">
+          <button class="dvback" onclick="hideDiverge()">← Back to evidence</button>
+          <div class="dvgroups">
+            <div class="dvg">
+              <div class="h">Favors early (2)</div>
+              <div class="s">Ardern 2018<br>Dumont 2012</div>
+            </div>
+            <div class="dvg">
+              <div class="h">No difference (3)</div>
+              <div class="s">Anderson 2015<br>Kocher 2019<br>Lee 2021</div>
+            </div>
+          </div>
+          <table class="axis">
+            <caption>Where they differ</caption>
+            <thead><tr><th></th><th scope="col">Favors early</th><th scope="col">No difference</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Design</th><td>1 RCT, 1 cohort</td><td>1 RCT, 2 cohort</td></tr>
+              <tr><th scope="row">Total n</th><td>550</td><td>612</td></tr>
+              <tr class="key"><th scope="row">Definition of "early"</th><td>&lt; 12 weeks</td><td>&lt; 6 wk to &lt; 6 mo</td></tr>
+              <tr><th scope="row">Population</th><td>Closed physes</td><td>Mixed skeletal maturity</td></tr>
+              <tr><th scope="row">Follow-up</th><td>24 mo</td><td>12–60 mo</td></tr>
+              <tr class="key"><th scope="row">Outcome measure</th><td>IKDC, Lysholm</td><td>IKDC, KOOS, Tegner</td></tr>
+            </tbody>
+          </table>
+          <p class="concentrate">Disagreement concentrates on: the definition of "early" and the outcome
+          instrument used. The two groups are not measuring the same exposure.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ═══ ABSTENTION ═══ -->
+  <section class="screen" id="s-abstain">
+    <div class="acol" style="max-width:800px;margin:0 auto">
+      <h2 class="qhead" id="abstainq">Does vitamin D supplementation reduce nonunion rates in scaphoid fractures?</h2>
+      <p class="demo-note" id="abstain-demo-note" hidden>This is a fixed demo response used to illustrate
+      the interface — AskStein isn't wired to a live corpus in this prototype, so the evidence below
+      doesn't reflect your exact question yet.</p>
+
+      <div class="abst">
+        <div class="t">Insufficient evidence</div>
+        <p>AskStein searched 338,701 passages and did not find evidence adequate to answer this reliably.</p>
+        <p>Rather than infer an answer, it is reporting the boundary of what the corpus contains.</p>
+      </div>
+
+      <div class="bdrule">Evidence boundary</div>
+
+      <div class="label" style="margin-top:0">What was found</div>
+
+      <div class="near">
+        <div class="h">Vitamin D and fracture healing — general</div>
+        <div class="m">4 passages · 3 papers · not scaphoid-specific</div>
+        <div class="c">
+          <button class="chip">Brinker 2007</button>
+          <button class="chip">Gorter 2014</button>
+          <button class="chip">Sprague 2016</button>
+        </div>
+      </div>
+
+      <div class="near">
+        <div class="h">Scaphoid nonunion risk factors</div>
+        <div class="m">6 passages · 4 papers · vitamin D not examined</div>
+        <div class="c">
+          <button class="chip">Dias 2005</button>
+          <button class="chip">Buijze 2012</button>
+          <button class="chip">+2</button>
+        </div>
+      </div>
+
+      <div class="label">Why this is insufficient</div>
+      <ul class="lims">
+        <li>No retrieved study examines vitamin D status as a predictor of scaphoid union specifically</li>
+        <li>The nearest evidence is in long-bone fractures and does not transfer directly</li>
+        <li>No interventional evidence was retrieved</li>
+      </ul>
+
+      <div class="label">What you could ask instead</div>
+      <div class="follow">
+        <button class="fu" onclick="ask('answer')"><span>→</span>What are the established risk factors for scaphoid nonunion?</button>
+        <button class="fu" onclick="ask('answer')"><span>→</span>Does vitamin D status affect fracture healing generally?</button>
+        <button class="fu" onclick="ask('answer')"><span>→</span>Evidence for vitamin D supplementation in long-bone nonunion</button>
+      </div>
+
+      <div class="fcomposer">
+        <div class="composer">
+          <label for="fq-abstain" class="sr">Ask a follow-up question</label>
+          <textarea id="fq-abstain" rows="1" placeholder="Ask a follow-up — the thread's sources stay in view"></textarea>
+          <button class="go" aria-label="Ask">⏎</button>
+        </div>
+        <div class="composer-meta"><span>Orthopedics corpus · 13,387 papers</span><span>New question ⌘K</span></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- mobile evidence sheet -->
+<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<div id="sheet" role="dialog" aria-label="Evidence" aria-hidden="true" tabindex="-1">
+  <div class="handle"></div>
+  <div class="sh">
+    <div class="t">Evidence for</div>
+    <div class="q" id="sheetq"></div>
+  </div>
+  <div style="padding:4px 20px 0" id="sheetbody"></div>
+  <button class="back" onclick="closeSheet()">⌃ Back to answer</button>
+</div>
+
+<button id="devdot" aria-label="Developer mode" title="Developer mode (`)" aria-hidden="true" tabindex="-1"></button>
+<div id="devbar" aria-hidden="true" inert>
+  <b>Prototype</b>
+  <button onclick="go('entry')" id="b-entry" aria-pressed="true">Entry</button>
+  <button onclick="ask('answer')" id="b-load">Retrieval</button>
+  <button onclick="go('answer')" id="b-answer">Answer</button>
+  <button onclick="go('answer');showDiverge()" id="b-div">Conflicting evidence</button>
+  <button onclick="go('abstain')" id="b-abstain">Abstention</button>
+  <span class="sep"></span>
+  <button onclick="setW('desktop')" id="w-desktop" aria-pressed="true">Desktop</button>
+  <button onclick="setW('mobile')" id="w-mobile">Mobile</button>
+  <span class="sep"></span>
+  <button onclick="setTheme('dark')" id="th-dark">Dark</button>
+  <button onclick="setTheme('light')" id="th-light" aria-pressed="true">Light</button>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let timers=[];
+
+/* hidden developer mode — the shipped product carries no visible
+   prototype chrome; press ` or click the corner dot to reach it.
+   #devbar is kept out of the a11y tree and tab order via aria-hidden
+   + inert whenever dev mode is off, synced with the dev-on class. */
+function toggleDevMode(){
+  const on = document.body.classList.toggle('dev-on');
+  const bar = document.getElementById('devbar');
+  bar.setAttribute('aria-hidden', String(!on));
+  bar.toggleAttribute('inert', !on);
+}
+document.getElementById('devdot').addEventListener('click', toggleDevMode);
+addEventListener('keydown',e=>{
+  if(e.key==='`' && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)){ toggleDevMode(); }
+});
+
+function go(s){
+  timers.forEach(clearTimeout);timers=[];
+  document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  ['entry','load','answer','div','abstain'].forEach(k=>$('b-'+k).setAttribute('aria-pressed','false'));
+  const map={entry:'entry',load:'load',answer:'answer',abstain:'abstain'};
+  if($('b-'+(map[s]||s)))$('b-'+(map[s]||s)).setAttribute('aria-pressed','true');
+  window.scrollTo(0,0);
+  if(s!=='answer')hideDiverge();
+}
+
+const CANNED_Q = {
+  answer: 'Is early ACL reconstruction better than delayed in adolescent athletes?',
+  abstain: 'Does vitamin D supplementation reduce nonunion rates in scaphoid fractures?'
+};
+
+/* composer icon buttons — honest about being illustrative: this prototype
+   has no real attachment upload or speech-to-text wired up, so say so
+   briefly rather than pretending to do something */
+let composerStatusTimer=null;
+function showComposerStatus(msg){
+  clearTimeout(composerStatusTimer);
+  $('composer-status').textContent = msg;
+  composerStatusTimer = setTimeout(()=>{ $('composer-status').textContent=''; }, 3200);
+}
+function composerAttach(){
+  showComposerStatus('Attachments aren\'t available in this prototype yet.');
+}
+let micActive=false;
+let micRevertTimer=null;
+function composerMic(){
+  micActive = !micActive;
+  $('mic-btn').classList.toggle('active', micActive);
+  $('mic-btn').setAttribute('aria-pressed', String(micActive));
+  clearTimeout(micRevertTimer);
+  if(micActive){
+    showComposerStatus('Voice input isn\'t wired up in this prototype yet.');
+    micRevertTimer = setTimeout(()=>{
+      micActive=false;
+      $('mic-btn').classList.remove('active');
+      $('mic-btn').setAttribute('aria-pressed','false');
+    }, 1800);
+  }
+}
+
+function ask(kind){
+  const typed=$('q').value.trim();
+  const target=kind==='abstain' ? 'abstain' : 'answer';
+
+  /* P0 fix: a freeform submit (Enter / the Ask button — kind is
+     undefined) with nothing typed must not silently advance to a
+     canned answer. Scripted follow-up buttons and the dev toolbar
+     pass an explicit kind and are allowed to use the canned text. */
+  if(kind===undefined && !typed){
+    $('q-error').hidden=false;
+    $('q').setAttribute('aria-invalid','true');
+    $('q').focus();
+    return;
+  }
+  $('q-error').hidden=true;
+  $('q').removeAttribute('aria-invalid');
+
+  const resolvedQ = typed || CANNED_Q[target];
+  const isCustom = typed && typed!==CANNED_Q[target];
+  $('loadq').textContent = resolvedQ;
+  go('load');
+  [0,1,2,3].forEach(i=>{$('st'+i).classList.remove('on');$('st'+i).querySelector('.mark').textContent='○'});
+  const marks=['✓','✓','◐','✓'];
+  [700,1450,2200,3000].forEach((t,i)=>timers.push(setTimeout(()=>{
+    $('st'+i).classList.add('on');
+    $('st'+i).querySelector('.mark').textContent = i===2?'✓':marks[i];
+  },t)));
+  timers.push(setTimeout(()=>{
+    if(target==='abstain'){
+      $('abstainq').textContent=resolvedQ;
+      $('abstain-demo-note').hidden=!isCustom;
+    }else{
+      $('answerq').textContent=resolvedQ;
+      $('answer-demo-note').hidden=!isCustom;
+    }
+    go(target);
+  },3900));
+}
+$('q').addEventListener('input',()=>{
+  if(!$('q-error').hidden){ $('q-error').hidden=true; $('q').removeAttribute('aria-invalid'); }
+});
+
+/* claim ↔ rail linkage */
+function lit(id){
+  document.querySelectorAll('.src').forEach(s=>s.classList.add('dim'));
+  const el=$('src-'+id); if(!el)return;
+  el.classList.remove('dim'); el.classList.add('lit');
+  el.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function unlit(){
+  document.querySelectorAll('.src').forEach(s=>{s.classList.remove('dim');s.classList.remove('lit')});
+}
+function toggleSrc(id){$('src-'+id).classList.toggle('open')}
+
+function focusClaim(cid,text){
+  document.querySelectorAll('.claim').forEach(c=>c.classList.remove('active'));
+  document.querySelector('[data-cid="'+cid+'"]').classList.add('active');
+  $('focusq').textContent='"'+text+'"';
+  $('focusbar').classList.add('on');
+  const keep={c1:['ardern','dumont'],c3:['frosch','kocher'],c4:['dumont']}[cid]||[];
+  document.querySelectorAll('.src').forEach(s=>{
+    const id=s.id.replace('src-','');
+    s.style.display = keep.includes(id)?'':'none';
+  });
+  document.querySelectorAll('.concord').forEach(c=>c.style.display='none');
+  if(window.innerWidth<900||document.getElementById('frame').classList.contains('mobile'))openSheet(text);
+}
+function clearFocus(){
+  $('focusbar').classList.remove('on');
+  document.querySelectorAll('.claim').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.src').forEach(s=>s.style.display='');
+  document.querySelectorAll('.concord').forEach(c=>c.style.display='');
+}
+
+function tab(btn,mode){
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected','false'));
+  btn.setAttribute('aria-selected','true');
+  clearFocus();
+  document.querySelectorAll('.src').forEach(s=>{
+    s.style.display = (mode==='cited' && s.dataset.cited==='0') ? 'none' : '';
+  });
+  document.querySelectorAll('.concord')[1].style.display = mode==='cited'?'none':'';
+}
+
+function showDiverge(){
+  $('diverge').classList.add('on');
+  $('srcs').style.display='none';
+  document.querySelector('.tabs').style.display='none';
+  $('focusbar').classList.remove('on');
+  document.querySelectorAll('.claim').forEach(c=>c.classList.remove('active'));
+  const c2=document.querySelector('[data-cid="c2"]'); if(c2)c2.classList.add('active');
+  ['entry','load','answer','div','abstain'].forEach(k=>$('b-'+k).setAttribute('aria-pressed','false'));
+  $('b-div').setAttribute('aria-pressed','true');
+}
+function hideDiverge(){
+  $('diverge').classList.remove('on');
+  $('srcs').style.display='';
+  const t=document.querySelector('.tabs'); if(t)t.style.display='';
+}
+
+/* mobile sheet */
+let sheetTrigger=null;
+function openSheet(text){
+  sheetTrigger = document.activeElement;
+  $('sheetq').textContent=text;
+  $('sheetbody').innerHTML=$('srcs').innerHTML;
+  $('sheetbody').querySelectorAll('.src').forEach(s=>{s.style.display='';s.classList.remove('dim','lit')});
+  $('sheet').classList.add('on'); $('scrim').classList.add('on');
+  $('sheet').setAttribute('aria-hidden','false');
+  /* deferred one frame: focusing immediately can race the visibility
+     transition on some browsers, which silently drops the focus call */
+  requestAnimationFrame(()=>$('sheet').focus());
+}
+function closeSheet(){
+  const wasOpen = $('sheet').classList.contains('on');
+  $('sheet').classList.remove('on');$('scrim').classList.remove('on');
+  $('sheet').setAttribute('aria-hidden','true');
+  if(wasOpen && sheetTrigger){ sheetTrigger.focus(); sheetTrigger=null; }
+}
+
+let mobileOverride=false;
+function applyAutoMobile(){
+  if(mobileOverride) return;
+  $('frame').classList.toggle('mobile', window.matchMedia('(max-width:768px)').matches);
+}
+window.addEventListener('resize', applyAutoMobile);
+applyAutoMobile();
+
+function setW(m){
+  /* manual dev-toolbar override; leaves auto-responsive detection
+     alone for real visitors who never touch the toolbar */
+  mobileOverride=true;
+  $('frame').classList.toggle('mobile',m==='mobile');
+  $('w-desktop').setAttribute('aria-pressed',m==='desktop');
+  $('w-mobile').setAttribute('aria-pressed',m==='mobile');
+  closeSheet();
+}
+
+function sidebarFocusable(){
+  return Array.from($('sidebar').querySelectorAll('a[href], button'))
+    .filter(el=>el.offsetParent!==null);
+}
+function toggleSidebar(){
+  const open = !$('sidebar').classList.contains('on');
+  $('sidebar').classList.toggle('on', open);
+  $('sidebar-overlay').classList.toggle('on', open);
+  document.body.classList.toggle('sidebar-open', open);
+  $('sidebar').setAttribute('aria-hidden', String(!open));
+  $('hamburgerBtn').setAttribute('aria-expanded', String(open));
+  if(open){
+    const f=sidebarFocusable();
+    if(f.length) f[0].focus();
+  }
+}
+function closeSidebar(){
+  const wasOpen = $('sidebar').classList.contains('on');
+  $('sidebar').classList.remove('on');
+  $('sidebar-overlay').classList.remove('on');
+  document.body.classList.remove('sidebar-open');
+  $('sidebar').setAttribute('aria-hidden','true');
+  $('hamburgerBtn').setAttribute('aria-expanded','false');
+  if(wasOpen) $('hamburgerBtn').focus();
+}
+/* Explicitly cycle every Tab press within an open overlay rather than
+   only intervening at the first/last boundary — relying on the browser's
+   native tab order for the "middle" case doesn't hold up under all
+   input methods (e.g. assistive-tech-driven or synthetic key events),
+   so drive focus ourselves on every Tab while the overlay is open. */
+function trapTab(e, container){
+  const f = Array.from(container.querySelectorAll('a[href], button'))
+    .filter(el=>el.offsetParent!==null);
+  if(!f.length) return;
+  e.preventDefault();
+  let idx = f.indexOf(document.activeElement);
+  if(idx===-1) idx = 0;
+  idx = e.shiftKey ? (idx-1+f.length)%f.length : (idx+1)%f.length;
+  f[idx].focus();
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ closeSidebar(); closeSheet(); }
+  if(e.key==='Tab'){
+    if($('sidebar').classList.contains('on')) trapTab(e, $('sidebar'));
+    else if($('sheet').classList.contains('on')) trapTab(e, $('sheet'));
+  }
+});
+
+/* keyboard model */
+let ci=-1;
+document.addEventListener('keydown',e=>{
+  if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName))return;
+  const claims=[...document.querySelectorAll('#s-answer.on .claim')];
+  if(!claims.length&&!['k','Escape'].includes(e.key))return;
+  if(e.key==='j'||e.key==='J'){ci=Math.min(ci+1,claims.length-1);claims[ci].focus();e.preventDefault()}
+  if(e.key==='k'||e.key==='K'){ci=Math.max(ci-1,0);claims[ci].focus();e.preventDefault()}
+  if(e.key==='e'||e.key==='E'){
+    const c=document.activeElement.closest?.('.claim')||claims[ci];
+    if(c)focusClaim(c.dataset.cid,c.querySelector('p').textContent.trim());
+  }
+  if(e.key==='Escape'){clearFocus();hideDiverge();closeSheet()}
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();go('entry');$('q').focus()}
+});
+
+/* autogrow composer */
+document.querySelectorAll('.composer textarea').forEach(t=>{
+  t.addEventListener('input',()=>{t.style.height='auto';t.style.height=Math.min(t.scrollHeight,104)+'px'});
+});
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   THE RECONSTRUCTION
+   A depth-projected computational reconstruction of a knee
+   joint — femur meeting tibia — built as rings of vertices
+   along two tapered, gently-bowed bone axes and rendered with
+   three simultaneous treatments (wireframe ribs, translucent
+   surface bands, and a point-cloud shell) rather than one flat
+   material. The joint itself is the addressable evidence
+   region: on retrieval, it's the joint — not an arbitrary
+   point — that ignites, together with the nearest cluster of
+   the literature point-cloud/graph that hugs the bone shell.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  const cv=document.getElementById('field'), ctx=cv.getContext('2d');
+  const glowEl=document.getElementById('glow');
+  const RM=matchMedia('(prefers-reduced-motion: reduce)');
+  let W=0,H=0,DPR=1,t=0;
+  let ambient=1,targetAmbient=1;
+  let ignite=0,igniteT=0,igniteAt=-1;
+  let theme='light';
+  let quiet=false;                 // abstention: the environment goes quiet, not dark
+
+  function inkTriple(){ return theme==='dark' ? '210,218,222' : '22,24,26'; }
+  function glowTriple(){ return theme==='dark' ? '95,209,192' : '27,77,62'; }
+  function hotTriple(){ return theme==='dark' ? '232,181,74' : '128,89,28'; }
+  function mobileScale(){ return innerWidth<760 ? 0.55 : 1; }
+
+  /* fixed tilt: the limb runs top-left → bottom-right */
+  const TZ=0.38, TX=0.16;
+  const cz=Math.cos(TZ), sz=Math.sin(TZ), cxx=Math.cos(TX), sxx=Math.sin(TX);
+
+  /* ── anatomy: femur (proximal, off-top) meeting tibia
+     (distal, off-bottom) at a knee joint. Each ring carries a
+     position along the limb axis, a radius, a slight organic
+     bow, and flags for which ring belongs to the joint (the
+     evidence-addressable region) ─────────────────────────── */
+  const RING_PTS = 14;
+  const RINGS_FEMUR = 44, RINGS_TIBIA = 38;
+  const RINGS = (function(){
+    const out=[];
+    for(let i=0;i<=RINGS_FEMUR;i++){
+      const u=i/RINGS_FEMUR;                        // 0 proximal .. 1 at joint
+      out.push({
+        y:-2.30+u*2.21, rad:0.135+Math.pow(u,2.4)*0.255,
+        cx:Math.sin(u*3.1)*0.05, cz:Math.sin(u*3.1)*0.022,
+        bone:'femur', u, joint:u>0.87
+      });
+    }
+    for(let i=0;i<=RINGS_TIBIA;i++){
+      const u=i/RINGS_TIBIA;                         // 0 at joint .. 1 distal
+      out.push({
+        y:0.09+u*1.95, rad:0.305-Math.pow(u,1.6)*0.175,
+        cx:-Math.sin(u*2.6)*0.045, cz:-Math.sin(u*2.6)*0.020,
+        bone:'tibia', u, joint:u<0.11
+      });
+    }
+    return out;
+  })();
+  const JOINT_IDX = RINGS.map((r,i)=>r.joint?i:-1).filter(i=>i>=0);
+
+  /* ── the literature point-cloud + knowledge graph: a shell
+     of evidence nodes that hugs the bone surface rather than
+     floating free — "the network is subordinate to the
+     anatomy" ─────────────────────────────────────────────── */
+  let pts=[], links=[], drift=[], jointDots=[];
+  /* ── tiny glowing motes suspended in the joint gap itself —
+     the narrow space between where the femur rings end and the
+     tibia rings begin. They drift slowly in true 3D (so they turn
+     with the rest of the reconstruction) and each dims and
+     re-glows on its own independent, offset cycle rather than
+     blinking in unison — reads as quiet activity at exactly the
+     evidence-addressable point, not decoration. ────────────────── */
+  function buildJointDots(){
+    jointDots=[];
+    const N = innerWidth<760 ? 9000 : 16000; // 50x further increase, per feedback
+    for(let i=0;i<N;i++){
+      const ang=Math.random()*6.28318, rad=0.05+Math.random()*0.30;
+      jointDots.push({
+        x:Math.cos(ang)*rad, y:(Math.random()-.5)*0.22, z:Math.sin(ang)*rad,
+        vx:(Math.random()-.5)*0.00006, vy:(Math.random()-.5)*0.00004, vz:(Math.random()-.5)*0.00006,
+        ph:Math.random()*Math.PI*2, sp:0.0009+Math.random()*0.0012
+      });
+    }
+  }
+  function buildDrift(){
+    drift=[];
+    const N = innerWidth<760 ? 26 : 70;
+    for(let i=0;i<N;i++){
+      drift.push({
+        x:Math.random(), y:Math.random(),
+        vx:(Math.random()-.5)*0.000010, vy:(Math.random()-.5)*0.000007,
+        r:Math.random()*1.1+.4, ph:Math.random()*Math.PI*2,
+        pr:0.00035+Math.random()*0.0005     // twinkle rate, slow
+      });
+    }
+  }
+  function buildField(){
+    pts=[];
+    const N = innerWidth<760 ? 620 : 2000;
+    const K = 22;
+    const cents=[];
+    for(let i=0;i<K;i++){
+      const r = RINGS[Math.floor((i/K)*RINGS.length)];
+      cents.push({x:r.cx,y:r.y,z:r.cz,rad:r.rad,cid:i});
+    }
+    for(let i=0;i<N;i++){
+      const c=cents[(Math.random()*cents.length)|0];
+      const ang=Math.random()*6.28318;
+      const shell=c.rad+0.05+Math.pow(Math.random(),1.6)*0.62;   // hugs the surface, thins outward
+      pts.push({x:c.x+Math.cos(ang)*shell, y:c.y+(Math.random()-.5)*0.11, z:c.z+Math.sin(ang)*shell,
+                r:Math.random()*.6+.5, ph:Math.random()*Math.PI*2, cid:c.cid});
+    }
+    // knowledge-graph links removed — the thin connecting lines
+    // read as stray marks scattered across the page rather than
+    // structure, so the point cloud now stands alone.
+    links=[];
+  }
+
+  function size(){
+    DPR=Math.min(devicePixelRatio||1,2);
+    W=innerWidth;H=innerHeight;
+    cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    buildField();
+    buildDrift();
+    buildJointDots();
+  }
+  addEventListener('resize',size,{passive:true});
+
+  /* shared camera — fixed angle, no mouse parallax */
+  function cam(){
+    const cx=W*.5, cy=H*.48, scale=Math.min(W,H)*.90;
+    return {cx,cy,scale,
+      cy2:1,sy2:0,
+      cx2:1,sx2:0,
+      camZ:1.86-igniteT*0.24};
+  }
+  function proj(x,y,z,c){
+    let X=x*c.cy2 - z*c.sy2, Z=x*c.sy2 + z*c.cy2;
+    let Y=y*c.cx2 - Z*c.sx2;  Z=y*c.sx2 + Z*c.cx2;
+    const d=c.camZ+Z; if(d<=.18) return null;
+    const k=1/d;
+    return {x:c.cx+X*c.scale*k*1.05, y:c.cy+Y*c.scale*k*1.05, z:Z, k};
+  }
+
+  /* the limb runs down the lower-left — never under the column */
+  function boneOffsetX(){
+    if(W<820) return 0;
+    return -(W*0.5 - Math.max(60, Math.min(W*0.22, 360)));
+  }
+  function boneOffsetY(){
+    if(W<820) return H*0.02;
+    return H*0.13;
+  }
+
+  /* build one frame of the reconstruction in world space —
+     a very slow rotation + sway keeps it from ever reading
+     as a static illustration ─────────────────────────────── */
+  function boneMesh(c){
+    const OX=boneOffsetX(), OY=boneOffsetY();
+    const spin = t*0.000085;
+    const sway = Math.sin(t*0.00007)*0.045;
+    const out=[];
+    for(const r of RINGS){
+      const rowPts=[];
+      for(let k=0;k<RING_PTS;k++){
+        const ang=(k/RING_PTS)*6.28318 + spin;
+        let x=r.rad*Math.cos(ang)+r.cx+sway, y=r.y, z=r.rad*Math.sin(ang)+r.cz;
+        let x1=x*cz - y*sz, y1=x*sz + y*cz;
+        let y2=y1*cxx - z*sxx, z2=y1*sxx + z*cxx;
+        const q=proj(x1,y2,z2,c);
+        if(q){ q.x+=OX; q.y+=OY; }
+        rowPts.push(q);
+      }
+      out.push(rowPts);
+    }
+    return out;
+  }
+
+  const DOT_GOLD=[214,168,86], DOT_WHITE=[255,255,255];
+  function drawJointDots(c,ambientMul,MS){
+    const OX=boneOffsetX(), OY=boneOffsetY();
+    const spin=t*0.000085;
+    const ca=Math.cos(spin), sa=Math.sin(spin);
+    // additive blending: at this density, individual motes overlap
+    // and their brightness accumulates naturally into a soft glow
+    // at the densest point — cheaper than a per-dot gradient halo
+    // and reads as a genuine bloom rather than flat stacked circles
+    ctx.globalCompositeOperation='lighter';
+    for(const d of jointDots){
+      d.x+=d.vx*16; d.y+=d.vy*16; d.z+=d.vz*16;
+      if(d.y>0.13) d.y=-0.13; if(d.y<-0.13) d.y=0.13;
+      const rad=Math.hypot(d.x,d.z);
+      if(rad>0.36){ const k=0.34/rad; d.x*=k; d.z*=k; }
+      const rx=d.x*ca - d.z*sa, rz=d.x*sa + d.z*ca;
+      let x1=rx*cz - d.y*sz, y1=rx*sz + d.y*cz;
+      let y2=y1*cxx - rz*sxx, z2=y1*sxx + rz*cxx;
+      const q=proj(x1,y2,z2,c);
+      if(!q) continue;
+      const qx=q.x+OX, qy=q.y+OY;
+      // each mote dims into gold, then glows back up to white, on
+      // its own offset cycle — a slow, repeating twinkle rather
+      // than a single flash
+      const glow=0.5+0.5*Math.sin(t*d.sp+d.ph);
+      const rC=Math.round(DOT_GOLD[0]+(DOT_WHITE[0]-DOT_GOLD[0])*glow);
+      const gC=Math.round(DOT_GOLD[1]+(DOT_WHITE[1]-DOT_GOLD[1])*glow);
+      const bC=Math.round(DOT_GOLD[2]+(DOT_WHITE[2]-DOT_GOLD[2])*glow);
+      const coreA=(0.10+0.16*glow)*ambientMul*MS;
+      if(coreA<=.004) continue;
+      const rpx=Math.max(1.1,1.7*q.k);
+      ctx.beginPath(); ctx.arc(qx,qy,rpx,0,6.283);
+      ctx.fillStyle='rgba('+rC+','+gC+','+bC+','+coreA.toFixed(3)+')'; ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  let hotSet=null;
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ambient+=(targetAmbient-ambient)*.06;
+    igniteT = ignite ? Math.min(1,igniteT+.020) : Math.max(0,igniteT-.028);
+    const c=cam();
+    const MS=mobileScale();
+    const quietMul = quiet ? 0.42 : 1;
+    const INK=inkTriple(), HOT=hotTriple(), GLOW=glowTriple();
+
+    /* knowledge-graph link lines removed per feedback — they read
+       as stray tick marks scattered across the page rather than
+       structure. The point-cloud shell below stands alone now. */
+
+    /* ── layer 2: evidence point-cloud shell ──────────────────
+       ambient scattered dots removed per feedback — the shell now
+       only lights up during an active retrieval (search) highlight,
+       instead of sitting visible across the page at rest. */
+    for(let i=0;i<pts.length;i+=2){
+      const hot = hotSet && hotSet.has(i) ? igniteT : 0;
+      if(hot<=.02) continue;
+      const p=pts[i];
+      const q=proj(p.x, p.y+Math.sin(t*.0006+p.ph)*.008, p.z, c);
+      if(!q) continue;
+      const OX=boneOffsetX(), OY=boneOffsetY();
+      const qx=q.x+OX, qy=q.y+OY;
+      if(qx<-40||qx>W+40||qy<-40||qy>H+40) continue;
+      const depth=Math.max(0,Math.min(1,(1.9-q.z)/3.0));
+      const a=(0.32+depth*0.5)*ambient*hot;
+      if(a<=.004) continue;
+      const rad=Math.max(.3,p.r*q.k*1.5)*(1+hot*1.3);
+      ctx.beginPath();
+      ctx.arc(qx,qy,rad,0,6.283);
+      ctx.fillStyle='rgba('+HOT+','+a.toFixed(3)+')';
+      ctx.fill();
+    }
+
+    /* ── layer 3: the reconstruction — wireframe ribs,
+       banded translucent surface, and joint illumination,
+       painter-sorted back to front ─────────────────────────── */
+    const mesh=boneMesh(c);
+    const segs=[];
+    for(let i=0;i<RINGS.length-1;i++){
+      if(RINGS[i].bone!==RINGS[i+1].bone) continue;   // don't bridge the joint gap
+      const ring0=mesh[i], ring1=mesh[i+1];
+      const zAvg=(function(){ let s=0,n=0; for(const p of ring0) if(p){s+=p.z;n++;} return n?s/n:0; })();
+      const jointHot = (JOINT_IDX.includes(i)||JOINT_IDX.includes(i+1))
+        ? (igniteAt>=0 && (Math.abs(i-igniteAt)<=5) ? igniteT : 0) : 0;
+      const isJoint = RINGS[i].joint||RINGS[i+1].joint;
+      const surfaceBand = (i%5)<2;                     // some segments solid, some wireframe-only
+      segs.push({i,ring0,ring1,z:zAvg,jointHot,isJoint,surfaceBand});
+    }
+    segs.sort((a,b)=>b.z-a.z);   // painter: far first
+
+    for(const s of segs){
+      const depth=Math.max(0,Math.min(1,(1.9-s.z)/3.1));
+      const {ring0,ring1,jointHot,isJoint,surfaceBand}=s;
+
+      // translucent surface band (a subset of segments only)
+      if(surfaceBand){
+        const fa=(0.028+depth*0.05)*ambient*quietMul*MS*(jointHot>.02?1+jointHot*2:1);
+        if(fa>.004){
+          const col = jointHot>.02 ? HOT : (theme==='dark'?GLOW:INK);
+          ctx.fillStyle='rgba('+col+','+Math.min(.5,fa).toFixed(3)+')';
+          for(let k=0;k<RING_PTS;k++){
+            const k2=(k+1)%RING_PTS;
+            const p0=ring0[k],p1=ring0[k2],p2=ring1[k2],p3=ring1[k];
+            if(!p0||!p1||!p2||!p3) continue;
+            ctx.beginPath();
+            ctx.moveTo(p0.x,p0.y); ctx.lineTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.lineTo(p3.x,p3.y);
+            ctx.closePath(); ctx.fill();
+          }
+        }
+      }
+
+      // longitudinal wireframe ribs (every other vertex)
+      const ribA=(0.09+depth*0.30)*ambient*quietMul*MS;
+      if(ribA>.005){
+        const col = jointHot>.02 ? HOT : (theme==='dark'?GLOW:INK);
+        const a = jointHot>.02 ? Math.max(ribA,(0.22+depth*0.4)*ambient*jointHot) : ribA;
+        ctx.strokeStyle='rgba('+col+','+a.toFixed(3)+')';
+        ctx.lineWidth=isJoint?Math.max(.8,1.0+depth*1.6):Math.max(.5,0.6+depth*1.1);
+        for(let k=0;k<RING_PTS;k+=2){
+          const p0=ring0[k], p1=ring1[k];
+          if(!p0||!p1) continue;
+          ctx.beginPath(); ctx.moveTo(p0.x,p0.y); ctx.lineTo(p1.x,p1.y); ctx.stroke();
+        }
+      }
+
+      // circumferential ring outline (every 3rd ring only)
+      if(s.i%3===0){
+        const ra=(0.06+depth*0.22)*ambient*quietMul*MS;
+        if(ra>.005){
+          const col = jointHot>.02 ? HOT : (theme==='dark'?GLOW:INK);
+          ctx.strokeStyle='rgba('+col+','+ra.toFixed(3)+')';
+          ctx.lineWidth=Math.max(.4,0.5+depth*0.7);
+          ctx.beginPath();
+          for(let k=0;k<=RING_PTS;k++){
+            const p=ring0[k%RING_PTS]; if(!p) continue;
+            if(k===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+          }
+          ctx.stroke();
+        }
+      }
+    }
+
+    /* the joint, once ignited, announces itself the same way
+       a retrieved base pair used to — small bright nodes at
+       the addressed ring ────────────────────────────────────── */
+    if(igniteAt>=0 && igniteT>.02 && mesh[igniteAt]){
+      const ha=0.5*ambient*igniteT;
+      for(const p of mesh[igniteAt]){
+        if(!p) continue;
+        ctx.beginPath(); ctx.arc(p.x,p.y,3.2*(1+igniteT),0,6.283);
+        ctx.fillStyle='rgba('+HOT+','+(ha*0.3).toFixed(3)+')'; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x,p.y,1.3,0,6.283);
+        ctx.fillStyle='rgba('+HOT+','+Math.min(.95,ha*1.8).toFixed(3)+')'; ctx.fill();
+      }
+    }
+
+    drawJointDots(c,ambient*quietMul,MS);
+
+    if(theme==='dark') drawScan();
+    drawLabels(mesh);
+    /* ambient drift dots removed per feedback — was a scatter of ~70
+       twinkling dots across the whole page background. */
+  }
+
+  /* ── layer 4: a slow, near-imperceptible scan band —
+     "computational reconstruction," not a static picture ──── */
+  function drawScan(){
+    if(RM.matches) return;
+    const period=11000;
+    const phase=(t%period)/period;
+    const yPix=phase*(H*1.5)-H*0.25;
+    const g=ctx.createLinearGradient(0,yPix-70,0,yPix+70);
+    g.addColorStop(0,'rgba(95,209,192,0)');
+    g.addColorStop(.5,'rgba(95,209,192,'+(0.045*ambient).toFixed(3)+')');
+    g.addColorStop(1,'rgba(95,209,192,0)');
+    ctx.fillStyle=g;
+    ctx.fillRect(0,yPix-70,W,140);
+  }
+
+  /* ── layer 4: small technical annotations with a thin
+     callout line — anatomical structure, not fake data ────── */
+  const LABELS = [
+    {idx:5,  text:'FEMUR',  dx:34, dy:-8},
+    {idx:RINGS_FEMUR-6, text:'JOINT · EVIDENCE REGION', dx:40, dy:-4},
+    {idx:RINGS_FEMUR+6, text:'ACL · MENISCUS', dx:38, dy:14},
+    {idx:RINGS.length-6, text:'TIBIA', dx:30, dy:10},
+  ];
+  function drawLabels(mesh){
+    if(W<900) return;   // desktop-only detail; avoids mobile clutter
+    ctx.font='9px "IBM Plex Mono", ui-monospace, monospace';
+    ctx.textBaseline='middle';
+    const INK=inkTriple();
+    for(const L of LABELS){
+      const ring=mesh[L.idx]; if(!ring) continue;
+      const p=ring[1]||ring[0]; if(!p) continue;
+      const ex=p.x+L.dx, ey=p.y+L.dy;
+      if(ex>W*0.33 || p.x>W*0.33) continue;   // never stray into the reading column
+      const depth=Math.max(0,Math.min(1,(1.9-p.z)/3.1));
+      const a=(0.16+depth*0.30)*ambient*(quiet?0.42:1);
+      if(a<=.02) continue;
+      ctx.strokeStyle='rgba('+INK+','+(a*0.6).toFixed(3)+')';
+      ctx.lineWidth=.6;
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(ex,ey); ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x,p.y,1.4,0,6.283);
+      ctx.fillStyle='rgba('+INK+','+a.toFixed(3)+')'; ctx.fill();
+      ctx.fillStyle='rgba('+INK+','+a.toFixed(3)+')';
+      ctx.fillText(L.text, ex+5, ey);
+    }
+  }
+
+  /* ── layer 1: microscopic particles drifting independently
+     of the structure — the "living field" cue. Screen-space,
+     slow, wraps at the edges, twinkles gently. ─────────────── */
+  function drawDrift(quietMul,MS){
+    const INK=inkTriple();
+    for(const p of drift){
+      if(!RM.matches){
+        p.x+=p.vx*16; p.y+=p.vy*16;
+        if(p.x<-.02)p.x=1.02; if(p.x>1.02)p.x=-.02;
+        if(p.y<-.02)p.y=1.02; if(p.y>1.02)p.y=-.02;
+      }
+      const tw=0.5+0.5*Math.sin(t*p.pr+p.ph);
+      const a=(0.05+tw*0.16)*ambient*quietMul*MS;
+      if(a<=.004) continue;
+      ctx.beginPath();
+      ctx.arc(p.x*W,p.y*H,p.r,0,6.283);
+      ctx.fillStyle='rgba('+INK+','+a.toFixed(3)+')';
+      ctx.fill();
+    }
+  }
+
+  let raf;
+  function loop(){ t+=16; draw(); raf=requestAnimationFrame(loop); }
+  size();
+  if(RM.matches){ draw(); } else { loop(); }
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){cancelAnimationFrame(raf)}
+    else if(!RM.matches){raf=requestAnimationFrame(loop)}
+  });
+
+  window.FIELD={
+    depth(l){ targetAmbient=l; },
+    retrieve(n){
+      igniteAt = JOINT_IDX[(Math.random()*JOINT_IDX.length)|0];
+      ignite=1; igniteT=0;
+      // light the nearest cluster of the evidence shell to the joint —
+      // retrieval finds evidence near the addressed structure
+      const jr=RINGS[igniteAt];
+      const d=pts.map((p,i)=>({i,d:(p.x-jr.cx)**2+(p.y-jr.y)**2+(p.z-jr.cz)**2}))
+                 .sort((a,b)=>a.d-b.d).slice(0,n||17);
+      hotSet=new Set(d.map(o=>o.i));
+    },
+    cool(){ ignite=0; hotSet=null; },
+    theme(m){ theme=m; if(RM.matches) draw(); },
+    quiet(q){ quiet=q; },
+    glow(state){
+      if(!glowEl) return;
+      glowEl.classList.toggle('on', state==='on'||state===true);
+      glowEl.classList.toggle('dim', state==='dim');
+    }
+  };
+})();
+
+function setTheme(m){
+  document.documentElement.setAttribute('data-theme', m);
+  document.getElementById('th-dark').setAttribute('aria-pressed', m==='dark');
+  document.getElementById('th-light').setAttribute('aria-pressed', m==='light');
+  if(window.FIELD) FIELD.theme(m);
+}
+
+/* wire the field into the existing screen transitions */
+(function(){
+  const _go=window.go, _ask=window.ask;
+
+  /* ── ambient self-pulse ──────────────────────────────────
+     On the landing page only: the reconstruction periodically
+     "ignites" on its own — the same expand/highlight the joint
+     does on retrieval — then relaxes back, on a loop, while the
+     slow constant rotation keeps going underneath it. */
+  let autoPulseTimer=null;
+  function autoPulseTick(){
+    if(!window.FIELD) return;
+    FIELD.retrieve(14+Math.floor(Math.random()*10));
+    autoPulseTimer=setTimeout(()=>{
+      FIELD.cool();
+      autoPulseTimer=setTimeout(autoPulseTick, 2200+Math.random()*1600);
+    }, 1500);
+  }
+  function startAutoPulse(){ if(autoPulseTimer) return; autoPulseTimer=setTimeout(autoPulseTick, 900); }
+  function stopAutoPulse(){ clearTimeout(autoPulseTimer); autoPulseTimer=null; }
+
+  window.go=function(s){
+    _go(s);
+    if(!window.FIELD)return;
+    if(s==='entry'){ FIELD.depth(1); FIELD.cool(); FIELD.quiet(false); FIELD.glow('on'); startAutoPulse(); }
+    else if(s==='load'){ stopAutoPulse(); FIELD.depth(.85); FIELD.quiet(false); FIELD.glow('dim'); }
+    else if(s==='abstain'){ stopAutoPulse(); FIELD.depth(.20); FIELD.cool(); FIELD.quiet(true); FIELD.glow('off'); }
+    else { stopAutoPulse(); FIELD.depth(.34); FIELD.cool(); FIELD.quiet(false); FIELD.glow('dim'); }
+  };
+  window.ask=function(kind){
+    const typedNow = document.getElementById('q').value.trim();
+    if(kind===undefined && !typedNow){ _ask(kind); return; }
+    stopAutoPulse();
+    _ask(kind);
+    if(!window.FIELD)return;
+    FIELD.depth(.85); FIELD.quiet(false);
+    setTimeout(()=>FIELD.retrieve(17),1350);   // fires with "Retrieved 17 passages"
+  };
+  if(window.FIELD){ FIELD.glow('on'); startAutoPulse(); }   // entry starts expressive, pulsing
+})();
+</script>
+</body>
+</html>

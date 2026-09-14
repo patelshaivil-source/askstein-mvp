@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Documentation — AskStein</title>
+<meta name="description" content="How a question becomes an answer: ingestion, embedding, retrieval, generation, citation resolution, and abstention inside AskStein's pipeline.">
+<link rel="canonical" href="https://patelshaivil-source.github.io/askstein-mvp/documentation.html">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231B4D3E'/%3E%3Ctext x='50' y='70' font-family='Arial,Helvetica,sans-serif' font-size='58' font-weight='700' fill='%23F6F1E7' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#1B4D3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<canvas id="field" aria-hidden="true"></canvas>
+<div id="ground" aria-hidden="true"></div>
+<div id="atmos" aria-hidden="true"></div>
+
+<header>
+  <div class="brand">
+    <a class="wordmark" href="index.html">AskStein</a>
+    <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" onclick="toggleSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+<aside id="sidebar" aria-hidden="true" inert>
+  <button class="sidebar-close" aria-label="Close menu" onclick="closeSidebar()">✕</button>
+  <nav class="sidebar-nav">
+    <a href="index.html">Home</a>
+    <a href="about.html">About</a>
+    <a href="corpus.html">Corpus</a>
+    <a href="documentation.html" class="current" aria-current="page">Documentation</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
+
+<main id="main-content" class="page page-shift">
+  <p class="eyebrow" data-reveal>Documentation</p>
+  <h1 class="qhead" data-reveal>How a question becomes an answer.</h1>
+  <p class="direct" data-reveal>The language model's job is deliberately narrow: read the retrieved evidence and
+  write an answer grounded in it. It is designed not to introduce fabricated citations — citation
+  accuracy is enforced by a separate post-processing step, not by the model's judgment — and when
+  retrieval doesn't surface adequate evidence, the system abstains. Citation resolution does not by
+  itself guarantee that every generated interpretation is fully supported by the underlying passage;
+  claim-level grounding remains subject to ongoing evaluation.</p>
+
+  <h2 class="label" data-reveal>The pipeline</h2>
+  <ol class="timeline">
+    <li class="stepline" data-reveal><span class="n">01</span><div><h3 class="h"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M4 12 6 5h12l2 7"/><path d="M4 12v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6"/></svg></span>Ingestion &amp; curation</h3>
+      <div class="d">Papers are collected from approved open-access sources according to the project's
+      ingestion and licensing criteria, deduplicated, and split into passages.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">02</span><div><h3 class="h"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="1.4"/><circle cx="18" cy="6" r="1.4"/><circle cx="6" cy="18" r="1.4"/><circle cx="18" cy="18" r="1.4"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><path d="M6 6l6 6M18 6l-6 6M6 18l6-6M18 18l-6-6"/></svg></span>Embedding</h3>
+      <div class="d">Each passage is converted into a vector using OpenAI's
+      text-embedding-3-large.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">03</span><div><h3 class="h"><span class="icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>Indexing</h3>
+      <div class="d">Those vectors are stored in a FAISS index built for fast similarity
+      search.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">04</span><div><h3 class="h"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>Retrieval</h3>
+      <div class="d">An incoming question is embedded and matched against the index to pull the most
+      relevant passages.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">05</span><div><h3 class="h"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 20l1-4 12-12 3 3-12 12-4 1Z"/><path d="M14 5l3 3"/></svg></span>Generation</h3>
+      <div class="d">A fine-tuned language model composes an answer using only the retrieved
+      evidence.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">06</span><div><h3 class="h"><span class="icon"><svg viewBox="0 0 24 24"><path d="M9 12h6"/><path d="M8 8H6a4 4 0 0 0 0 8h2"/><path d="M16 8h2a4 4 0 0 1 0 8h-2"/></svg></span>Citation resolution</h3>
+      <div class="d">Generated citations are resolved against canonical records in the corpus during
+      post-processing. Citations without a valid corpus match are rejected rather than
+      shown.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">07</span><div><h3 class="h"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/><path d="M12 8v5"/><circle cx="12" cy="16" r=".6" fill="currentColor"/></svg></span>Abstention</h3>
+      <div class="d">If the evidence isn't strong enough, the system says so instead of manufacturing an
+      answer.</div></div></li>
+  </ol>
+
+  <h2 class="bdrule" data-reveal>The system today</h2>
+  <dl class="brow" data-reveal><dt>Model</dt><dd>Qwen2.5-32B-Instruct with a fine-tuned LoRA adapter</dd></dl>
+  <dl class="brow" data-reveal><dt>Embeddings</dt><dd>OpenAI text-embedding-3-large</dd></dl>
+  <dl class="brow" data-reveal><dt>Retrieval</dt><dd>FAISS over 338,701 deduplicated passages drawn from roughly
+  13,387 papers — see the <a href="corpus.html">corpus →</a></dd></dl>
+  <dl class="brow" data-reveal><dt>Citations</dt><dd>Generated citations are resolved against canonical records in
+  the corpus; citations without a valid corpus match are rejected during post-processing. This verifies
+  that a cited source exists and is correctly attributed — it does not by itself guarantee that every
+  generated interpretation of that source is fully supported</dd></dl>
+  <dl class="brow" data-reveal><dt>Interface</dt><dd>A hosted web frontend</dd></dl>
+
+  <p class="body" data-reveal>This is the current proof-of-concept build. The corpus is deliberately frozen during
+  validation and is designed to scale substantially once that window closes.</p>
+
+  <h3 class="label" data-reveal>Corpus provenance</h3>
+  <dl class="brow" data-reveal><dt>Source channels</dt><dd>Not yet documented — see <a href="corpus.html">the corpus
+  page</a> for what's currently published about corpus composition</dd></dl>
+  <dl class="brow" data-reveal><dt>Licensing / inclusion criteria</dt><dd>Not yet documented</dd></dl>
+  <dl class="brow" data-reveal><dt>Corpus coverage dates</dt><dd>Not yet documented</dd></dl>
+  <dl class="brow" data-reveal><dt>Last ingestion</dt><dd>Not yet documented</dd></dl>
+  <dl class="brow" data-reveal><dt>Build version</dt><dd>Not yet documented</dd></dl>
+  <dl class="brow" data-reveal><dt>Docs updated</dt><dd>September 2, 2026</dd></dl>
+
+  <section aria-labelledby="eval-heading">
+    <h2 class="bdrule" id="eval-heading" data-reveal>Evaluation and limitations</h2>
+    <p class="body" data-reveal>System-level validation is in progress. The metrics below are the ones this kind
+    of evidence-retrieval system should ultimately report; none have been published yet, and the labels
+    below say so explicitly rather than implying a result. Until they are available, this interface
+    should not be interpreted as a clinical decision-making tool.</p>
+    <dl class="brow" data-reveal><dt>Retrieval recall</dt><dd>Not yet published</dd></dl>
+    <dl class="brow" data-reveal><dt>Citation-resolution success rate</dt><dd>Not yet published</dd></dl>
+    <dl class="brow" data-reveal><dt>Unsupported-claim rate</dt><dd>Not yet published</dd></dl>
+    <dl class="brow" data-reveal><dt>Abstention accuracy</dt><dd>Not yet published</dd></dl>
+    <dl class="brow" data-reveal><dt>Evaluation-set size</dt><dd>Not yet published</dd></dl>
+    <dl class="brow" data-reveal><dt>Clinical expert review</dt><dd>Planned / status not yet published</dd></dl>
+  </section>
+
+  <h2 class="bdrule" data-reveal>Where it's headed</h2>
+  <ol class="timeline">
+    <li class="stepline" data-reveal><span class="n">01</span><div><h3 class="h">Secure the foundation</h3>
+      <div class="d">Lock down the assets and tighten the corporate structure.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">02</span><div><h3 class="h">Build the evaluation harness</h3>
+      <div class="d">The foundation for external validation and a corpus-coverage
+      diagnostic.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">03</span><div><h3 class="h">Validate the beachhead</h3>
+      <div class="d">Seek external, expert validation of the orthopedic use case, pending formal engagement
+      with clinical collaborators.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">04</span><div><h3 class="h">Scale the corpus</h3>
+      <div class="d">Expand the evidence base, guided by what the eval harness reveals.</div></div></li>
+    <li class="stepline" data-reveal><span class="n">05</span><div><h3 class="h">Pilot &amp; fund</h3>
+      <div class="d">Explore a potential clinical pilot with academic medical collaborators, subject to
+      approval and funding.</div></div></li>
+  </ol>
+
+  <p class="philosophy" data-reveal>Abstention is not an error — it's a feature. When AskStein says it doesn't
+  know, it's reporting the honest boundary of what its corpus contains, not failing to answer.</p>
+</main>
+
+<script src="field.js"></script>
+<script src="nav.js"></script>
+</body>
+</html>

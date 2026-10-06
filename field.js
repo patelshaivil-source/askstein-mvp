@@ -179,7 +179,12 @@
       const rC=Math.round(DOT_GOLD[0]+(DOT_WHITE[0]-DOT_GOLD[0])*glow);
       const gC=Math.round(DOT_GOLD[1]+(DOT_WHITE[1]-DOT_GOLD[1])*glow);
       const bC=Math.round(DOT_GOLD[2]+(DOT_WHITE[2]-DOT_GOLD[2])*glow);
-      const coreA=(0.10+0.16*glow)*AMB*MS;
+      // Feather the outer shell so the particle volume has no bright
+      // white elliptical rim. The motes remain fully visible and in
+      // motion through the centre, then dissolve before the boundary.
+      const edge=Math.sqrt((rad/JOINT_R0)**2+(d.y/JOINT_Y0)**2);
+      const edgeFade=Math.max(0,Math.min(1,(1-edge)/0.22));
+      const coreA=(0.10+0.16*glow)*AMB*MS*edgeFade;
       if(coreA<=.004) continue;
       const rpx=Math.max(1.1,1.7*q.k);
       ctx.beginPath(); ctx.arc(qx,qy,rpx,0,6.283);

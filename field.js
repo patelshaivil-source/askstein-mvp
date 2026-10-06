@@ -149,9 +149,23 @@
     for(const d of jointDots){
       d.x+=d.vx*16; d.y+=d.vy*16; d.z+=d.vz*16;
       let rad=Math.hypot(d.x,d.z);
-      if(rad>JOINT_R0){ const k=JOINT_R0/rad; d.x*=k; d.z*=k; rad=JOINT_R0; }
+      if(rad>JOINT_R0){
+        // Reflect the outward part of the velocity at the curved wall.
+        // Clamping position alone leaves the velocity pointing outward,
+        // which eventually pins every mote to the rim and empties the
+        // centre of the cloud after a few seconds.
+        const nx=d.x/rad, nz=d.z/rad;
+        const outward=d.vx*nx+d.vz*nz;
+        if(outward>0){
+          d.vx-=2*outward*nx;
+          d.vz-=2*outward*nz;
+        }
+        const k=(JOINT_R0-0.0005)/rad;
+        d.x*=k; d.z*=k; rad=JOINT_R0-0.0005;
+      }
       const maxY=JOINT_Y0*Math.sqrt(Math.max(0,1-(rad/JOINT_R0)*(rad/JOINT_R0)));
-      if(d.y>maxY) d.y=-maxY; if(d.y<-maxY) d.y=maxY;
+      if(d.y>maxY){ d.y=maxY; d.vy=-Math.abs(d.vy); }
+      if(d.y<-maxY){ d.y=-maxY; d.vy=Math.abs(d.vy); }
       const rx=d.x*ca - d.z*sa, rz=d.x*sa + d.z*ca;
       let x1=rx*cz - d.y*sz, y1=rx*sz + d.y*cz;
       let y2=y1*cxx - rz*sxx, z2=y1*sxx + rz*cxx;
